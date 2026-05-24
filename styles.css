@@ -170,6 +170,60 @@
       display: block !important;
     }
     .hidden { display: none; }
+    .browser-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(47, 36, 24, 0.5);
+      backdrop-filter: blur(6px);
+    }
+    .browser-gate.hidden { display: none; }
+    .browser-gate-card {
+      width: min(520px, 100%);
+      border-radius: 18px;
+      background: #ffffff;
+      padding: 22px;
+      box-shadow: 0 18px 48px rgba(47, 36, 24, 0.24);
+    }
+    .browser-gate-title {
+      margin: 0 0 10px;
+      font-size: 30px;
+      font-weight: 700;
+      color: #226f66;
+    }
+    .browser-gate-text {
+      margin: 10px 0;
+      font-size: 22px;
+      line-height: 1.45;
+      color: #3c3024;
+    }
+    .browser-gate-btn,
+    .browser-gate-secondary,
+    .browser-gate-link {
+      display: block;
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 10px;
+      font-size: 22px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .browser-gate-btn,
+    .browser-gate-link {
+      background: #226f66;
+      color: #ffffff;
+    }
+    .browser-gate-secondary {
+      background: #f1d7b6;
+      color: #4a2e12;
+    }
     .admin-section {
       border-color: rgba(34, 111, 102, 0.22);
       background: #fbfffd;

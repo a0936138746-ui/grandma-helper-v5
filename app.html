@@ -9,6 +9,20 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <div id="browserGate" class="browser-gate hidden" role="dialog" aria-live="polite" aria-label="瀏覽器提醒">
+    <div class="browser-gate-card">
+      <p class="browser-gate-title">請用手機瀏覽器開啟</p>
+      <p class="browser-gate-text">
+        目前像是在 LINE、Facebook 或 Instagram 內建瀏覽器中開啟。語音、通知、加入主畫面可能會失效。
+      </p>
+      <p class="browser-gate-text">
+        請按右上角「...」或分享按鈕，選擇「用瀏覽器開啟」。Android 建議 Chrome，iPhone 建議 Safari。
+      </p>
+      <button id="copyPageLinkBtn" class="browser-gate-btn" type="button">複製網址</button>
+      <a id="openChromeLink" class="browser-gate-link" href="#">嘗試用 Chrome 開啟</a>
+      <button id="dismissBrowserGateBtn" class="browser-gate-secondary" type="button">我知道了，先繼續使用</button>
+    </div>
+  </div>
   <main class="app">
     <section class="card">
       <h1>乖孫管家</h1>

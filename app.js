@@ -40,6 +40,10 @@ const STORE_KEY = "grandmaVoiceLogs";
     const profileSelect = document.getElementById("profileSelect");
     const profileStatus = document.getElementById("profileStatus");
     const quickActionGrid = document.getElementById("quickActionGrid");
+    const browserGate = document.getElementById("browserGate");
+    const copyPageLinkBtn = document.getElementById("copyPageLinkBtn");
+    const openChromeLink = document.getElementById("openChromeLink");
+    const dismissBrowserGateBtn = document.getElementById("dismissBrowserGateBtn");
 
     const schedulePlan = [
       { time: "06:30", text: "早安、天氣、穿衣、量血壓血糖提醒" },
@@ -500,6 +504,44 @@ const STORE_KEY = "grandmaVoiceLogs";
       if (!floatingStatus) return;
       const shortText = String(text || "").replace(/\s+/g, " ").trim();
       floatingStatus.textContent = shortText.length > 46 ? `${shortText.slice(0, 46)}...` : shortText;
+    }
+
+    function isEmbeddedBrowser() {
+      const ua = navigator.userAgent || "";
+      return /Line|FBAN|FBAV|Instagram|Messenger|MicroMessenger|TikTok|Twitter|wv/i.test(ua);
+    }
+
+    function setupBrowserGate() {
+      if (!browserGate) return;
+      const currentUrl = window.location.href;
+      const isAndroid = /Android/i.test(navigator.userAgent || "");
+      if (openChromeLink) {
+        if (isAndroid && location.protocol === "https:") {
+          const target = `${location.host}${location.pathname}${location.search}`;
+          openChromeLink.href = `intent://${target}#Intent;scheme=https;package=com.android.chrome;end`;
+        } else {
+          openChromeLink.href = currentUrl;
+          openChromeLink.textContent = "複製後用 Safari/Chrome 開啟";
+        }
+      }
+      if (copyPageLinkBtn) {
+        copyPageLinkBtn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(currentUrl);
+            copyPageLinkBtn.textContent = "已複製網址";
+          } catch (_) {
+            copyPageLinkBtn.textContent = "請長按網址列複製";
+          }
+        });
+      }
+      if (dismissBrowserGateBtn) {
+        dismissBrowserGateBtn.addEventListener("click", () => {
+          browserGate.classList.add("hidden");
+        });
+      }
+      if (isEmbeddedBrowser()) {
+        browserGate.classList.remove("hidden");
+      }
     }
 
     function buildCareMessage(intent) {
@@ -1522,6 +1564,7 @@ const STORE_KEY = "grandmaVoiceLogs";
     }
 
     function bootApp() {
+      safeRun("瀏覽器提醒", setupBrowserGate);
       safeRun("日期", renderToday);
       safeRun("提醒", setReminderByHour);
       safeRun("摘要", renderSummary);
