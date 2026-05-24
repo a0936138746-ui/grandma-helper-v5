@@ -44,6 +44,10 @@ const STORE_KEY = "grandmaVoiceLogs";
     const copyPageLinkBtn = document.getElementById("copyPageLinkBtn");
     const openChromeLink = document.getElementById("openChromeLink");
     const dismissBrowserGateBtn = document.getElementById("dismissBrowserGateBtn");
+    const elderSpeakBtn = document.getElementById("elderSpeakBtn");
+    const elderEmergencyBtn = document.getElementById("elderEmergencyBtn");
+    const elderFamilyBtn = document.getElementById("elderFamilyBtn");
+    const elderDoneBtn = document.getElementById("elderDoneBtn");
 
     const schedulePlan = [
       { time: "06:30", text: "早安、天氣、穿衣、量血壓血糖提醒" },
@@ -363,6 +367,34 @@ const STORE_KEY = "grandmaVoiceLogs";
       if (!["我吃藥了", "我要看影片", "我不舒服"].includes(text)) {
         saveLifeNote(text);
       }
+    }
+
+    function handleElderSpeak() {
+      voiceText.textContent = "我在聽。你可以說血壓數字、買菜、拿藥、哪裡不舒服，或任何想到的事。";
+      toggleVoiceByClick();
+    }
+
+    function handleElderEmergency() {
+      const message = "我收到不舒服訊息。你先坐好休息，我會通知家人關心你。";
+      voiceText.textContent = message;
+      logEvent("緊急", "阿嬤按下我不舒服");
+      notifyFamily("阿嬤按下我不舒服");
+      speak(message);
+    }
+
+    function handleElderFamily() {
+      const message = "我幫你通知家人，請他們來關心你。";
+      voiceText.textContent = message;
+      notifyFamily("阿嬤想找家人");
+      speak(message);
+    }
+
+    function handleElderDone() {
+      const message = "好，我幫你記下完成了。如果是哪一件事，也可以直接跟我說。";
+      voiceText.textContent = message;
+      markResponseReceived("我做好了");
+      logEvent("回報", "阿嬤按下我做好了");
+      speak(message);
     }
 
     function setMode(mode) {
@@ -1542,6 +1574,10 @@ const STORE_KEY = "grandmaVoiceLogs";
     document.getElementById("saveKeywordBtn").addEventListener("click", saveKeywordRule);
     document.getElementById("iconModeBtn").addEventListener("click", toggleIconMode);
     document.getElementById("addMedicineBtn").addEventListener("click", addMedicine);
+    elderSpeakBtn.addEventListener("click", handleElderSpeak);
+    elderEmergencyBtn.addEventListener("click", handleElderEmergency);
+    elderFamilyBtn.addEventListener("click", handleElderFamily);
+    elderDoneBtn.addEventListener("click", handleElderDone);
     document.querySelectorAll("[data-mood]").forEach(btn => {
       btn.addEventListener("click", () => recordMood(btn.dataset.mood));
     });

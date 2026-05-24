@@ -52,15 +52,25 @@
       <p id="profileStatus" class="hint"></p>
     </section>
 
-    <section class="card">
-      <h2>語音管家</h2>
-      <button id="voiceBtn" class="voice-btn" type="button">按住說話</button>
-      <p id="voiceText" class="hint">你可以說：我量好了、我吃藥了、我不舒服、我要看影片。</p>
+    <section class="card elder-simple-section">
+      <h2>跟乖孫說</h2>
+      <button id="voiceBtn" class="voice-btn" type="button">跟乖孫說</button>
+      <p id="voiceText" class="hint">想到什麼直接說，管家會幫你整理。</p>
+      <div class="grid" style="margin-top:10px;">
+        <button id="elderSpeakBtn" class="big-btn" type="button">跟乖孫說</button>
+        <button id="elderEmergencyBtn" class="big-btn alert" type="button">我不舒服</button>
+        <button id="elderFamilyBtn" class="big-btn" type="button">找家人</button>
+        <button id="elderDoneBtn" class="big-btn" type="button">我做好了</button>
+      </div>
+    </section>
+
+    <section class="card admin-section">
+      <h2>語音管家設定</h2>
       <button id="iconModeBtn" class="mini-btn" type="button">切換大圖示模式</button>
       <div id="quickActionGrid" class="grid" style="margin-top:10px;"></div>
     </section>
 
-    <section class="card">
+    <section class="card admin-section">
       <h2>健康紀錄</h2>
       <input id="bpInput" class="input" placeholder="血壓，例如 128/75" />
       <input id="sugarInput" class="input" placeholder="血糖，例如 110" />
@@ -69,12 +79,12 @@
       <p id="saveStatus" class="hint"></p>
     </section>
 
-    <section class="card">
+    <section class="card admin-section">
       <h2>我的藥</h2>
       <div id="medicineList"></div>
     </section>
 
-    <section class="card">
+    <section class="card admin-section">
       <h2>生活記事</h2>
       <input id="lifeNoteInput" class="input" placeholder="阿嬤直接說或輸入：去菜市場、再加豆腐、買好了" />
       <button id="saveLifeNoteBtn" class="save-btn" type="button">讓管家幫我整理</button>
@@ -84,7 +94,7 @@
       <div id="habitList"></div>
     </section>
 
-    <section class="card">
+    <section class="card admin-section">
       <h2>主動關懷</h2>
       <p id="careMessage" class="status">管家會依時間主動關心阿嬤。</p>
       <div class="grid" style="margin-top:10px;">
@@ -93,7 +103,7 @@
       </div>
     </section>
 
-    <section class="card">
+    <section class="card admin-section">
       <h2>今天心情</h2>
       <div class="grid">
         <button class="big-btn" type="button" data-mood="開心">開心</button>
@@ -104,7 +114,7 @@
       <div id="moodTrend"></div>
     </section>
 
-    <section class="card">
+    <section class="card admin-section">
       <h2>今日摘要</h2>
       <div id="summary"></div>
       <button id="doctorBtn" class="mini-btn" type="button">看醫生摘要（近 7 天）</button>
