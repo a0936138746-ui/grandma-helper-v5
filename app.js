@@ -48,6 +48,12 @@ const STORE_KEY = "grandmaVoiceLogs";
     const elderEmergencyBtn = document.getElementById("elderEmergencyBtn");
     const elderFamilyBtn = document.getElementById("elderFamilyBtn");
     const elderDoneBtn = document.getElementById("elderDoneBtn");
+    const setupWizard = document.getElementById("setupWizard");
+    const skipWizardBtn = document.getElementById("skipWizardBtn");
+    const customActionLabelInput = document.getElementById("customActionLabelInput");
+    const customActionTextInput = document.getElementById("customActionTextInput");
+    const addCustomActionBtn = document.getElementById("addCustomActionBtn");
+    const customActionList = document.getElementById("customActionList");
 
     const schedulePlan = [
       { time: "06:30", text: "早安、天氣、穿衣、量血壓血糖提醒" },
@@ -73,6 +79,8 @@ const STORE_KEY = "grandmaVoiceLogs";
     const MOOD_KEY = "grandmaHelperMoods";
     const MEDICINE_KEY = "grandmaHelperMedicines";
     const PROFILE_KEY = "grandmaHelperProfile";
+    const SETUP_DONE_KEY = "grandmaHelperSetupDone";
+    const CUSTOM_ACTIONS_KEY = "grandmaHelperCustomActions";
 
     const profiles = {
       elder: {
@@ -193,6 +201,13 @@ const STORE_KEY = "grandmaVoiceLogs";
       medicines = storage.getJSON(MEDICINE_KEY, []);
     } catch (_) {
       medicines = [];
+    }
+
+    let customActions = [];
+    try {
+      customActions = storage.getJSON(CUSTOM_ACTIONS_KEY, []);
+    } catch (_) {
+      customActions = [];
     }
 
     const quickRule = {
@@ -345,7 +360,8 @@ const STORE_KEY = "grandmaVoiceLogs";
 
     function renderQuickActions() {
       const profile = profiles[getProfile()] || profiles.elder;
-      quickActionGrid.innerHTML = profile.quickActions.map(action => (
+      const actions = [...profile.quickActions, ...customActions];
+      quickActionGrid.innerHTML = actions.map(action => (
         `<button class="big-btn${action.alert ? " alert" : ""}" type="button" data-quick="${action.value}">${action.label}</button>`
       )).join("");
 
@@ -367,6 +383,60 @@ const STORE_KEY = "grandmaVoiceLogs";
       if (!["我吃藥了", "我要看影片", "我不舒服"].includes(text)) {
         saveLifeNote(text);
       }
+    }
+
+    function showSetupWizardIfNeeded() {
+      if (!setupWizard) return;
+      const done = storage.getString(SETUP_DONE_KEY, "") === "yes";
+      if (!done) setupWizard.classList.remove("hidden");
+    }
+
+    function completeSetup(profileId) {
+      if (profileId) setProfile(profileId);
+      storage.setString(SETUP_DONE_KEY, "yes");
+      setupWizard.classList.add("hidden");
+    }
+
+    function persistCustomActions() {
+      customActions = customActions.slice(0, 6);
+      storage.setJSON(CUSTOM_ACTIONS_KEY, customActions);
+      renderCustomActions();
+      renderQuickActions();
+    }
+
+    function addCustomAction() {
+      const label = customActionLabelInput.value.trim();
+      const value = customActionTextInput.value.trim();
+      if (!label || !value) {
+        actionStatus.textContent = "請輸入快捷鍵名稱和觸發內容。";
+        return;
+      }
+      customActions.unshift({
+        label,
+        value,
+        custom: true
+      });
+      customActionLabelInput.value = "";
+      customActionTextInput.value = "";
+      persistCustomActions();
+      actionStatus.textContent = `已新增快捷鍵：${label}`;
+    }
+
+    function renderCustomActions() {
+      if (!customActionList) return;
+      if (!customActions.length) {
+        customActionList.innerHTML = "<p class='hint'>還沒有自訂快捷鍵。</p>";
+        return;
+      }
+      customActionList.innerHTML = customActions.map((action, index) => (
+        `<div class="list-item"><strong>${action.label}</strong><br>${action.value}<br><button class="delete-btn" type="button" data-delete-action="${index}">刪除快捷鍵</button></div>`
+      )).join("");
+      customActionList.querySelectorAll("[data-delete-action]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          customActions.splice(Number(btn.dataset.deleteAction), 1);
+          persistCustomActions();
+        });
+      });
     }
 
     function handleElderSpeak() {
@@ -1342,9 +1412,23 @@ const STORE_KEY = "grandmaVoiceLogs";
         summary.innerHTML = "<p class='hint'>今天還沒有新紀錄。</p>";
         return;
       }
-      summary.innerHTML = logs.slice(0, 5).map(item => (
-        `<div class="list-item"><strong>${item.kind}</strong><br>${item.detail}<br><span class="hint">${item.ts}</span></div>`
+      summary.innerHTML = logs.slice(0, 8).map((item, index) => (
+        `<div class="list-item"><strong>${item.kind}</strong><br>${item.detail}<br><span class="hint">${item.ts}</span><br><button class="delete-btn" type="button" data-delete-log="${index}">刪除這筆</button></div>`
       )).join("");
+
+      summary.querySelectorAll("[data-delete-log]").forEach(btn => {
+        btn.addEventListener("click", () => deleteLogEntry(Number(btn.dataset.deleteLog)));
+      });
+    }
+
+    function deleteLogEntry(index) {
+      if (!Number.isInteger(index) || index < 0 || index >= logs.length) return;
+      const removed = logs.splice(index, 1)[0];
+      storage.setJSON(STORE_KEY, logs);
+      renderSummary();
+      renderSystemStatus();
+      renderTodayFocus();
+      actionStatus.textContent = `已刪除：${removed.kind}`;
     }
 
     function renderTimeline() {
@@ -1453,7 +1537,8 @@ const STORE_KEY = "grandmaVoiceLogs";
         taskCards,
         keywordRules,
         moodLogs,
-        medicines
+        medicines,
+        customActions
       };
       backupText.value = JSON.stringify(payload, null, 2);
       actionStatus.textContent = "已匯出資料備份。";
@@ -1472,6 +1557,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         keywordRules = Array.isArray(payload.keywordRules) ? payload.keywordRules.slice(0, 20) : keywordRules;
         moodLogs = Array.isArray(payload.moodLogs) ? payload.moodLogs.slice(0, 30) : moodLogs;
         medicines = Array.isArray(payload.medicines) ? payload.medicines.slice(0, 30) : medicines;
+        customActions = Array.isArray(payload.customActions) ? payload.customActions.slice(0, 6) : customActions;
         try {
           storage.setJSON(STORE_KEY, logs);
           storage.setJSON(HABIT_KEY, habits);
@@ -1479,6 +1565,7 @@ const STORE_KEY = "grandmaVoiceLogs";
           storage.setJSON(KEYWORD_RULES_KEY, keywordRules);
           storage.setJSON(MOOD_KEY, moodLogs);
           storage.setJSON(MEDICINE_KEY, medicines);
+          storage.setJSON(CUSTOM_ACTIONS_KEY, customActions);
         } catch (_) {}
         renderSummary();
         renderHabits();
@@ -1486,6 +1573,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         renderKeywordRules();
         renderMoodTrend();
         renderMedicines();
+        renderCustomActions();
         renderHabitRadar();
         renderHealthTrend();
         actionStatus.textContent = "已匯入資料備份。";
@@ -1505,12 +1593,14 @@ const STORE_KEY = "grandmaVoiceLogs";
         storage.remove(KEYWORD_RULES_KEY);
         storage.remove(MOOD_KEY);
         storage.remove(MEDICINE_KEY);
+        storage.remove(CUSTOM_ACTIONS_KEY);
       } catch (_) {}
       habits = [];
       taskCards = [];
       keywordRules = [];
       moodLogs = [];
       medicines = [];
+      customActions = [];
       backupText.value = "";
       doctorSummaryText.value = "";
       weeklyReportText.value = "";
@@ -1520,6 +1610,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       renderKeywordRules();
       renderMoodTrend();
       renderMedicines();
+      renderCustomActions();
       renderHabitRadar();
       renderHealthTrend();
       scheduleAllTaskReminders();
@@ -1578,6 +1669,11 @@ const STORE_KEY = "grandmaVoiceLogs";
     elderEmergencyBtn.addEventListener("click", handleElderEmergency);
     elderFamilyBtn.addEventListener("click", handleElderFamily);
     elderDoneBtn.addEventListener("click", handleElderDone);
+    addCustomActionBtn.addEventListener("click", addCustomAction);
+    skipWizardBtn.addEventListener("click", () => completeSetup());
+    document.querySelectorAll("[data-wizard-profile]").forEach(btn => {
+      btn.addEventListener("click", () => completeSetup(btn.dataset.wizardProfile));
+    });
     document.querySelectorAll("[data-mood]").forEach(btn => {
       btn.addEventListener("click", () => recordMood(btn.dataset.mood));
     });
@@ -1615,6 +1711,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       safeRun("藥物", renderMedicines);
       safeRun("習慣雷達", renderHabitRadar);
       safeRun("健康趨勢", renderHealthTrend);
+      safeRun("自訂快捷鍵", renderCustomActions);
       safeRun("任務提醒", scheduleAllTaskReminders);
       safeRun("時程", renderTimeline);
       safeRun("通知設定", loadWebhookConfig);
@@ -1622,6 +1719,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       safeRun("測試模式", renderMode);
       safeRun("視圖", renderView);
       safeRun("情境", renderProfile);
+      safeRun("設定精靈", showSetupWizardIfNeeded);
       profileSelect.addEventListener("change", () => setProfile(profileSelect.value));
       safeRun("PWA", registerServiceWorker);
     }

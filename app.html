@@ -23,6 +23,20 @@
       <button id="dismissBrowserGateBtn" class="browser-gate-secondary" type="button">我知道了，先繼續使用</button>
     </div>
   </div>
+  <div id="setupWizard" class="browser-gate hidden" role="dialog" aria-live="polite" aria-label="設定精靈">
+    <div class="browser-gate-card">
+      <p class="browser-gate-title">先選一個使用情境</p>
+      <p class="browser-gate-text">不用研究功能，先選最接近的用途。之後都可以再改。</p>
+      <div class="wizard-grid">
+        <button class="wizard-option" type="button" data-wizard-profile="elder">長輩照護</button>
+        <button class="wizard-option" type="button" data-wizard-profile="student">讀書作業</button>
+        <button class="wizard-option" type="button" data-wizard-profile="home">家庭生活</button>
+        <button class="wizard-option" type="button" data-wizard-profile="business">小生意</button>
+        <button class="wizard-option" type="button" data-wizard-profile="teacher">老師班務</button>
+      </div>
+      <button id="skipWizardBtn" class="browser-gate-secondary" type="button">先用預設</button>
+    </div>
+  </div>
   <main class="app">
     <section class="card">
       <h1>乖孫管家</h1>
@@ -50,6 +64,14 @@
         <option value="business">小商家</option>
       </select>
       <p id="profileStatus" class="hint"></p>
+    </section>
+
+    <section class="card admin-section">
+      <h2>自訂快捷鍵</h2>
+      <input id="customActionLabelInput" class="input" placeholder="按鈕名稱，例如：找女兒" />
+      <input id="customActionTextInput" class="input" placeholder="觸發內容，例如：我想找女兒" />
+      <button id="addCustomActionBtn" class="mini-btn" type="button">新增快捷鍵</button>
+      <div id="customActionList"></div>
     </section>
 
     <section class="card elder-simple-section">
