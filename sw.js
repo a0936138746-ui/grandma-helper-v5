@@ -1,11 +1,11 @@
-const CACHE_NAME = "personal-assistant-v5-cache-v33";
+const CACHE_NAME = "personal-assistant-v5-cache-v34";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./app.html",
-  "./styles.css?v=20260802f",
-  "./storage.js?v=20260802f",
-  "./app.js?v=20260802f",
+  "./styles.css?v=20260802g",
+  "./storage.js?v=20260802g",
+  "./app.js?v=20260802g",
   "./manifest.json"
 ];
 
