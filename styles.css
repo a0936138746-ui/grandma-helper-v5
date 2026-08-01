@@ -543,3 +543,43 @@
     .voice-fallback .input {
       margin-bottom: 10px;
     }
+    .admin-advanced > summary {
+      display: grid;
+      gap: 5px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .admin-advanced > summary::-webkit-details-marker {
+      display: none;
+    }
+    .admin-advanced > summary::after {
+      content: "展開";
+      justify-self: start;
+      margin-top: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #edf8f4;
+      color: #226f66;
+      font-size: 17px;
+      font-weight: 800;
+    }
+    .admin-advanced[open] > summary::after {
+      content: "收起";
+    }
+    .admin-advanced-title {
+      font-size: 28px;
+      font-weight: 800;
+    }
+    .admin-advanced-hint {
+      color: #6d5841;
+      font-size: 19px;
+      line-height: 1.5;
+    }
+    .admin-subsection {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid #eadfce;
+    }
+    .admin-subsection h2 {
+      font-size: 25px;
+    }

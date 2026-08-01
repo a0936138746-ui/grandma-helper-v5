@@ -6,7 +6,7 @@
   <title>智能管家 v5 一個管家版</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#226f66" />
-  <link rel="stylesheet" href="./styles.css?v=20260802c" />
+  <link rel="stylesheet" href="./styles.css?v=20260802d" />
 </head>
 <body>
   <div id="browserGate" class="browser-gate hidden" role="dialog" aria-live="polite" aria-label="瀏覽器提醒">
@@ -264,57 +264,63 @@
       <div id="healthTrend"></div>
     </section>
 
-    <section class="card admin-section">
-      <h2>資料工具</h2>
-      <button id="exportDataBtn" class="mini-btn" type="button">匯出資料備份</button>
-      <textarea id="backupText" class="input" rows="5" placeholder="資料備份會顯示在這裡，也可以貼上備份再匯入"></textarea>
-      <button id="importDataBtn" class="mini-btn" type="button">匯入資料備份</button>
-      <button id="clearDataBtn" class="mini-btn" type="button">清除測試資料</button>
-    </section>
+    <details class="card admin-section admin-advanced">
+      <summary>
+        <span class="admin-advanced-title">進階設定與資料工具</span>
+        <span class="admin-advanced-hint">備份、通知、警戒值、藥物、關鍵字與時程</span>
+      </summary>
 
-    <section class="card admin-section">
-      <h2>家人通知設定</h2>
-      <div class="mode-row">
-        <button id="testModeBtn" class="mode-btn" type="button">測試模式</button>
-        <button id="liveModeBtn" class="mode-btn" type="button">正式模式</button>
-      </div>
-      <p id="modeStatus" class="hint"></p>
-      <input id="webhookInput" class="input" placeholder="貼上 webhook 網址（可先留空）" />
-      <button id="saveWebhookBtn" class="mini-btn" type="button">儲存通知設定</button>
-      <p id="webhookStatus" class="hint">目前：模擬模式（不送出網路通知）</p>
-    </section>
+      <section class="admin-subsection">
+        <h2>資料工具</h2>
+        <button id="exportDataBtn" class="mini-btn" type="button">匯出資料備份</button>
+        <textarea id="backupText" class="input" rows="5" placeholder="資料備份會顯示在這裡，也可以貼上備份再匯入"></textarea>
+        <button id="importDataBtn" class="mini-btn" type="button">匯入資料備份</button>
+        <button id="clearDataBtn" class="mini-btn" type="button">清除測試資料</button>
+      </section>
 
-    <section class="card admin-section">
-      <h2>健康警戒值</h2>
-      <input id="bpHighInput" class="input" placeholder="高血壓警戒，例如 180/110" />
-      <input id="bpLowInput" class="input" placeholder="低血壓警戒，例如 90/60" />
-      <input id="sugarHighInput" class="input" placeholder="高血糖警戒，例如 250" />
-      <input id="sugarLowInput" class="input" placeholder="低血糖警戒，例如 70" />
-      <button id="saveAlertRulesBtn" class="mini-btn" type="button">儲存警戒值</button>
-      <p id="alertRulesStatus" class="hint"></p>
-    </section>
+      <section class="admin-subsection">
+        <h2>家人通知設定</h2>
+        <div class="mode-row">
+          <button id="testModeBtn" class="mode-btn" type="button">測試模式</button>
+          <button id="liveModeBtn" class="mode-btn" type="button">正式模式</button>
+        </div>
+        <p id="modeStatus" class="hint"></p>
+        <input id="webhookInput" class="input" placeholder="貼上 webhook 網址（可先留空）" />
+        <button id="saveWebhookBtn" class="mini-btn" type="button">儲存通知設定</button>
+        <p id="webhookStatus" class="hint">目前：模擬模式（不送出網路通知）</p>
+      </section>
 
-    <section class="card admin-section">
-      <h2>藥物設定</h2>
-      <input id="medicineNameInput" class="input" placeholder="藥名，例如 血壓藥" />
-      <input id="medicineTimeInput" class="input" placeholder="時間，例如 早上飯後" />
-      <input id="medicineCountInput" class="input" placeholder="剩餘數量，例如 28" />
-      <button id="addMedicineBtn" class="mini-btn" type="button">新增藥物</button>
-    </section>
+      <section class="admin-subsection">
+        <h2>健康警戒值</h2>
+        <input id="bpHighInput" class="input" placeholder="高血壓警戒，例如 180/110" />
+        <input id="bpLowInput" class="input" placeholder="低血壓警戒，例如 90/60" />
+        <input id="sugarHighInput" class="input" placeholder="高血糖警戒，例如 250" />
+        <input id="sugarLowInput" class="input" placeholder="低血糖警戒，例如 70" />
+        <button id="saveAlertRulesBtn" class="mini-btn" type="button">儲存警戒值</button>
+        <p id="alertRulesStatus" class="hint"></p>
+      </section>
 
-    <section class="card admin-section">
-      <h2>關鍵字規則</h2>
-      <input id="keywordInput" class="input" placeholder="關鍵字，例如：頭暈、跌倒、菜市場" />
-      <input id="keywordReplyInput" class="input" placeholder="管家回覆，例如：先坐下休息，我通知家人" />
-      <button id="saveKeywordBtn" class="mini-btn" type="button">新增關鍵字規則</button>
-      <div id="keywordRuleList"></div>
-    </section>
+      <section class="admin-subsection">
+        <h2>藥物設定</h2>
+        <input id="medicineNameInput" class="input" placeholder="藥名，例如 血壓藥" />
+        <input id="medicineTimeInput" class="input" placeholder="時間，例如 早上飯後" />
+        <input id="medicineCountInput" class="input" placeholder="剩餘數量，例如 28" />
+        <button id="addMedicineBtn" class="mini-btn" type="button">新增藥物</button>
+      </section>
 
-    <section class="card admin-section">
-      <h2>今日時程</h2>
-      <div id="timeline"></div>
-    </section>
+      <section class="admin-subsection">
+        <h2>關鍵字規則</h2>
+        <input id="keywordInput" class="input" placeholder="關鍵字，例如：頭暈、跌倒、菜市場" />
+        <input id="keywordReplyInput" class="input" placeholder="管家回覆，例如：先坐下休息，我通知家人" />
+        <button id="saveKeywordBtn" class="mini-btn" type="button">新增關鍵字規則</button>
+        <div id="keywordRuleList"></div>
+      </section>
 
+      <section class="admin-subsection">
+        <h2>今日時程</h2>
+        <div id="timeline"></div>
+      </section>
+    </details>
     <aside class="caretaker-panel" aria-live="polite">
       <div class="caretaker-row">
         <div>
@@ -326,7 +332,7 @@
     </aside>
   </main>
 
-  <script src="./storage.js?v=20260802c" defer></script>
-  <script src="./app.js?v=20260802c" defer></script>
+  <script src="./storage.js?v=20260802d" defer></script>
+  <script src="./app.js?v=20260802d" defer></script>
 </body>
 </html>
