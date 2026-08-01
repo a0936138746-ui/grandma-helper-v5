@@ -530,6 +530,56 @@ const STORE_KEY = "grandmaVoiceLogs";
       return true;
     }
 
+    function isButlerBriefQuery(text) {
+      const clean = String(text || "").replace(/[，。！？、,.!?\s]/g, "");
+      return /^(?:管家|乖孫)?(?:今天|現在|目前)?(?:要做什麼|有什麼要做|有什麼事情|有什麼重要的事|有沒有重要的事|有沒有要處理的事|幫我整理一下|幫我看一下|報告一下|說明一下)$/.test(clean)
+        || /^(?:管家|乖孫)(?:今日報告|今天報告|總整理|總結|報告)$/.test(clean);
+    }
+
+    function buildButlerBriefReply() {
+      const lines = [];
+      const openTasks = taskCards.filter(card => card.status === "進行中");
+      const nextTask = openTasks[0];
+      if (openTasks.length) {
+        lines.push(`你有 ${openTasks.length} 件事情，我先幫你顧著。最重要的是「${nextTask.title}」`);
+      }
+
+      const orderStats = orderSummaryCache && orderSummaryCache.stats;
+      if (orderStats) {
+        const orderParts = [];
+        if (Number(orderStats.overdueCount || 0) > 0) orderParts.push(`逾期 ${Number(orderStats.overdueCount)} 筆`);
+        if (Number(orderStats.todayCount || 0) > 0) orderParts.push(`今天 ${Number(orderStats.todayCount)} 筆`);
+        if (Number(orderStats.unpaidAmount || 0) > 0) orderParts.push(`未收款 NT$ ${orderMoney(orderStats.unpaidAmount)}`);
+        if (orderParts.length) lines.push(`訂單要注意：${orderParts.join("、")}`);
+      }
+
+      const latestHealth = logs.find(item => item.kind === "健康");
+      if (latestHealth) lines.push(`最近健康紀錄是：${latestHealth.detail}`);
+
+      const investmentCards = typeof getInvestmentCards === "function"
+        ? getInvestmentCards().filter(card => card.status === "進行中")
+        : [];
+      const investmentRiskCount = investmentCards.filter(card => card.category === "風險" || card.category === "停損停利").length;
+      if (investmentRiskCount) lines.push(`投資有 ${investmentRiskCount} 項風險或停損停利要確認`);
+
+      if (!lines.length) return "目前沒有急著處理的事情。想到任何事直接跟我說，我會幫你分類和記住。";
+      return lines.slice(0, 4).join("。") + "。";
+    }
+
+    async function handleButlerBriefQuery(text) {
+      if (!isButlerBriefQuery(text)) return false;
+      if (getOrderConnectionToken()) {
+        const generatedAt = orderSummaryCache && Date.parse(orderSummaryCache.generatedAt || "");
+        const isStale = !generatedAt || Date.now() - generatedAt > 5 * 60 * 1000;
+        if (!orderSummaryCache || isStale) await fetchOrderSummary();
+      }
+      const reply = buildButlerBriefReply();
+      lifeNoteStatus.textContent = reply;
+      voiceText.textContent = reply;
+      updateFloatingStatus(reply);
+      speak(reply);
+      return true;
+    }
     function getOrderConnectionToken() {
       try {
         return storage.getString(ORDER_CONNECTION_TOKEN_KEY, "");
@@ -2463,6 +2513,10 @@ const STORE_KEY = "grandmaVoiceLogs";
         return;
       }
       if (handlePendingButlerAnswer(text)) {
+        lifeNoteInput.value = "";
+        return;
+      }
+      if (await handleButlerBriefQuery(text)) {
         lifeNoteInput.value = "";
         return;
       }
