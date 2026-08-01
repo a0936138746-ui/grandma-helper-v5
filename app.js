@@ -445,6 +445,15 @@ const STORE_KEY = "grandmaVoiceLogs";
       const nextTask = openTasks[0];
       const latestHealth = logs.find(item => item.kind === "健康");
       const lines = [];
+      const orderStats = orderSummaryCache && orderSummaryCache.stats;
+      if (orderStats && Number(orderStats.overdueCount || 0) > 0) {
+        lines.push(`訂單：有 ${Number(orderStats.overdueCount)} 筆逾期要先處理`);
+      } else if (orderStats && Number(orderStats.todayCount || 0) > 0) {
+        lines.push(`訂單：今天有 ${Number(orderStats.todayCount)} 筆要處理`);
+      }
+      if (orderStats && Number(orderStats.unpaidAmount || 0) > 0) {
+        lines.push(`未收款：NT$ ${orderMoney(orderStats.unpaidAmount)}`);
+      }
       if (nextTask) lines.push(`待辦：${nextTask.title}`);
       if (latestHealth) lines.push(`最近健康：${latestHealth.detail}`);
       if (!lines.length) lines.push("目前沒有急著處理的事情。");
@@ -462,6 +471,63 @@ const STORE_KEY = "grandmaVoiceLogs";
 
     function orderMoney(value) {
       return Number(value || 0).toLocaleString("zh-TW");
+    }
+
+    function isOrderSummaryQuery(text) {
+      const clean = String(text || "").replace(/[，。！？,.!?\s]/g, "");
+      const mentionsOrders = /訂單|出貨|宅配|未收款|收款/.test(clean);
+      const asksForStatus = /查|看|整理|摘要|幾筆|多少|哪些|有沒有|還有|目前|現在|今天|明天|到期|逾期|快到|要處理/.test(clean);
+      return mentionsOrders && asksForStatus && !/新增|建立|記一筆|客人訂|客戶訂|下單/.test(clean);
+    }
+
+    function buildOrderSummaryReply(text) {
+      if (!orderSummaryCache || !orderSummaryCache.stats) return "訂單摘要目前還讀不到，我會保留原本資料，請稍後再試一次。";
+      const stats = orderSummaryCache.stats;
+      const priority = Array.isArray(orderSummaryCache.priority) ? orderSummaryCache.priority : [];
+      const clean = String(text || "");
+      const lines = [];
+
+      if (/未收款|收款|多少錢/.test(clean)) {
+        lines.push(`目前有 ${Number(stats.unpaidCount || 0)} 筆未收款，共 NT$ ${orderMoney(stats.unpaidAmount)}。`);
+      } else if (/逾期/.test(clean)) {
+        lines.push(`目前有 ${Number(stats.overdueCount || 0)} 筆逾期訂單。`);
+      } else if (/宅配|出貨/.test(clean)) {
+        lines.push(`目前有 ${Number(stats.shippingCount || 0)} 筆宅配訂單。`);
+      } else {
+        lines.push(`目前未結案 ${Number(stats.activeCount || 0)} 筆，今天 ${Number(stats.todayCount || 0)} 筆，逾期 ${Number(stats.overdueCount || 0)} 筆。`);
+        if (Number(stats.unpaidAmount || 0) > 0) lines.push(`未收款共 NT$ ${orderMoney(stats.unpaidAmount)}。`);
+      }
+
+      const urgent = priority.filter(order => Number(order.dueInDays) <= 0).slice(0, 2);
+      if (/哪些|逾期|快到|要處理|摘要/.test(clean) && urgent.length) {
+        lines.push("先處理：" + urgent.map(order => {
+          const due = Number(order.dueInDays) < 0 ? `逾期 ${Math.abs(Number(order.dueInDays))} 天` : "今天處理";
+          return `${order.name}（${due}）`;
+        }).join("、") + "。");
+      }
+      return lines.join(" ");
+    }
+
+    async function handleOrderSummaryQuery(text) {
+      if (!isOrderSummaryQuery(text)) return false;
+      if (!getOrderConnectionToken()) {
+        const reply = "訂單系統還沒連接。請家人在管理頁設定一次連接密碼，之後直接問我就好。";
+        lifeNoteStatus.textContent = reply;
+        voiceText.textContent = reply;
+        updateFloatingStatus(reply);
+        speak(reply);
+        return true;
+      }
+
+      const generatedAt = orderSummaryCache && Date.parse(orderSummaryCache.generatedAt || "");
+      const isStale = !generatedAt || Date.now() - generatedAt > 5 * 60 * 1000;
+      if (!orderSummaryCache || isStale) await fetchOrderSummary();
+      const reply = buildOrderSummaryReply(text);
+      lifeNoteStatus.textContent = reply;
+      voiceText.textContent = reply;
+      updateFloatingStatus(reply);
+      speak(reply);
+      return true;
     }
 
     function getOrderConnectionToken() {
@@ -542,11 +608,11 @@ const STORE_KEY = "grandmaVoiceLogs";
       const token = getOrderConnectionToken();
       if (!token) {
         renderOrderSummary();
-        return;
+        return false;
       }
       if (location.protocol === "file:") {
         orderConnectionStatus.textContent = "本機檔案模式無法連接 API，部署到 Vercel 後即可測試。";
-        return;
+        return false;
       }
 
       if (refreshOrderSummaryBtn) refreshOrderSummaryBtn.disabled = true;
@@ -570,8 +636,10 @@ const STORE_KEY = "grandmaVoiceLogs";
         renderOrderSummary();
         renderTodayFocus();
         updateFloatingStatus("肉粽訂單摘要已更新");
+        return true;
       } catch (error) {
         orderConnectionStatus.textContent = error.message || "訂單連接失敗";
+        return false;
       } finally {
         if (refreshOrderSummaryBtn) refreshOrderSummaryBtn.disabled = false;
       }
@@ -2388,13 +2456,17 @@ const STORE_KEY = "grandmaVoiceLogs";
       renderHabits();
     }
 
-    function saveLifeNote(textFromVoice) {
+    async function saveLifeNote(textFromVoice) {
       const text = (textFromVoice || lifeNoteInput.value).trim();
       if (!text) {
         lifeNoteStatus.textContent = "請先輸入想記下來的事情。";
         return;
       }
       if (handlePendingButlerAnswer(text)) {
+        lifeNoteInput.value = "";
+        return;
+      }
+      if (await handleOrderSummaryQuery(text)) {
         lifeNoteInput.value = "";
         return;
       }
