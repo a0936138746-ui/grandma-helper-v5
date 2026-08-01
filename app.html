@@ -6,7 +6,7 @@
   <title>智能管家 v5 一個管家版</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#226f66" />
-  <link rel="stylesheet" href="./styles.css?v=20260802a" />
+  <link rel="stylesheet" href="./styles.css?v=20260802b" />
 </head>
 <body>
   <div id="browserGate" class="browser-gate hidden" role="dialog" aria-live="polite" aria-label="瀏覽器提醒">
@@ -43,7 +43,7 @@
   <main class="app">
     <section class="card">
       <h1 id="appTitle">智能管家</h1>
-      <p class="version-tag">v5.7.0 一問總覽版</p>
+      <p class="version-tag">v5.8.0 操作修正版</p>
       <p id="today"></p>
       <p id="reminder" class="status"></p>
       <div id="systemStatusGrid" class="status-grid"></div>
@@ -165,7 +165,15 @@
     <section class="card elder-simple-section">
       <h2 id="assistantSectionTitle">跟管家說</h2>
       <button id="voiceBtn" class="voice-btn" type="button">跟管家說</button>
-      <p id="voiceText" class="hint">想到什麼直接說，管家會幫你整理。</p>
+      <p id="voiceText" class="hint" role="status" aria-live="polite">想到什麼直接說，管家會幫你整理。</p>
+      <div id="voiceFallbackBox" class="voice-fallback hidden">
+        <label for="voiceFallbackInput">麥克風不能用也沒關係，直接打字給管家</label>
+        <textarea id="voiceFallbackInput" class="input" rows="3" placeholder="例如：明天十點提醒我去拿藥"></textarea>
+        <div class="grid">
+          <button id="voiceFallbackSubmitBtn" class="mini-btn" type="button">送給管家</button>
+          <button id="voiceFallbackCancelBtn" class="mini-btn secondary" type="button">先不用</button>
+        </div>
+      </div>
       <div id="butlerFollowup" class="butler-followup hidden" role="status" aria-live="polite">
         <p class="butler-followup-label">管家想確認一件事</p>
         <p id="butlerFollowupQuestion"></p>
@@ -175,7 +183,7 @@
         </div>
       </div>
       <div class="grid" style="margin-top:10px;">
-        <button id="elderSpeakBtn" class="big-btn" type="button">跟管家說</button>
+        <button id="elderSpeakBtn" class="big-btn hidden" type="button" aria-hidden="true" tabindex="-1">跟管家說</button>
         <button id="elderEmergencyBtn" class="big-btn alert" type="button">重要狀況</button>
         <button id="elderFamilyBtn" class="big-btn" type="button">聯絡對象</button>
         <button id="elderDoneBtn" class="big-btn" type="button">我做好了</button>
@@ -313,12 +321,12 @@
           <p class="caretaker-title">智能管家正在看著</p>
           <p id="floatingStatus" class="caretaker-message">今天還沒有新的提醒。</p>
         </div>
-        <button id="floatingActionBtn" class="caretaker-action" type="button">我知道了</button>
+        <button id="floatingActionBtn" class="caretaker-action" type="button">跟管家說</button>
       </div>
     </aside>
   </main>
 
-  <script src="./storage.js?v=20260802a" defer></script>
-  <script src="./app.js?v=20260802a" defer></script>
+  <script src="./storage.js?v=20260802b" defer></script>
+  <script src="./app.js?v=20260802b" defer></script>
 </body>
 </html>

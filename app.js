@@ -2,6 +2,10 @@ const STORE_KEY = "grandmaVoiceLogs";
     const storage = window.appStorage;
     const voiceBtn = document.getElementById("voiceBtn");
     const voiceText = document.getElementById("voiceText");
+    const voiceFallbackBox = document.getElementById("voiceFallbackBox");
+    const voiceFallbackInput = document.getElementById("voiceFallbackInput");
+    const voiceFallbackSubmitBtn = document.getElementById("voiceFallbackSubmitBtn");
+    const voiceFallbackCancelBtn = document.getElementById("voiceFallbackCancelBtn");
     const summary = document.getElementById("summary");
     const reminder = document.getElementById("reminder");
     const today = document.getElementById("today");
@@ -761,8 +765,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       if (elderEmergencyBtn) elderEmergencyBtn.textContent = profile.importantLabel || "重要狀況";
       if (elderFamilyBtn) elderFamilyBtn.textContent = profile.contactLabel || "聯絡對象";
       if (elderDoneBtn) elderDoneBtn.textContent = profile.doneLabel || "我做好了";
-      if (investmentNotice) investmentNotice.classList.toggle("hidden", profileId !== "investment");
-      if (investmentDashboard) investmentDashboard.classList.toggle("hidden", profileId !== "investment");
+      renderSectionVisibility();
       if (lifeNoteTitle) lifeNoteTitle.textContent = profileId === "investment" ? "投資紀錄" : "生活記事";
       if (lifeNoteInput) {
         lifeNoteInput.placeholder = profileId === "investment"
@@ -976,15 +979,22 @@ const STORE_KEY = "grandmaVoiceLogs";
       renderView();
     }
 
+    function renderSectionVisibility() {
+      const isFamilyView = getView() === "family";
+      const profileId = getProfile();
+      document.querySelectorAll(".admin-section").forEach(section => {
+        const profileMatches = !section.classList.contains("investment-only") || profileId === "investment";
+        section.classList.toggle("hidden", !isFamilyView || !profileMatches);
+      });
+    }
+
     function renderView() {
       const view = getView();
       document.getElementById("grandmaViewToggle").checked = view === "grandma";
       document.getElementById("familyViewToggle").checked = view === "family";
       document.getElementById("grandmaViewBtn").classList.toggle("active", view === "grandma");
       document.getElementById("familyViewBtn").classList.toggle("active", view === "family");
-      document.querySelectorAll(".admin-section").forEach(section => {
-        section.classList.toggle("hidden", view !== "family");
-      });
+      renderSectionVisibility();
     }
 
     function saveWebhookConfig() {
@@ -2761,7 +2771,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       return false;
     }
 
-    function parseVoice(text) {
+    async function parseVoice(text) {
       const clean = text.replace(/[，。！？,.!?\s]/g, "");
       if (applyKeywordRules(text)) return;
       if (applyInvestmentGuardrails(text)) return;
@@ -2792,8 +2802,7 @@ const STORE_KEY = "grandmaVoiceLogs";
           return;
         }
       }
-      saveLifeNote(text);
-      voiceText.textContent = `已加入生活記事：${text}`;
+      await saveLifeNote(text);
     }
 
     function startVoice() {
@@ -2810,10 +2819,10 @@ const STORE_KEY = "grandmaVoiceLogs";
       voiceBtn.textContent = "我正在聽";
       voiceText.textContent = "請開始說話...";
 
-      recognition.onresult = (e) => {
+      recognition.onresult = async (e) => {
         clearTimeout(recognitionTimeout);
         const text = e.results[0][0].transcript || "";
-        parseVoice(text);
+        await parseVoice(text);
       };
       recognition.onerror = () => {
         clearTimeout(recognitionTimeout);
@@ -2822,11 +2831,20 @@ const STORE_KEY = "grandmaVoiceLogs";
       recognition.onend = () => {
         clearTimeout(recognitionTimeout);
         voiceBtn.classList.remove("listening");
-        voiceBtn.textContent = "按住說話";
+        voiceBtn.textContent = "跟管家說";
         voiceMode = "idle";
       };
       voiceMode = "listening";
-      recognition.start();
+      hideVoiceFallback();
+      try {
+        recognition.start();
+      } catch (_) {
+        voiceMode = "idle";
+        voiceBtn.classList.remove("listening");
+        voiceBtn.textContent = "跟管家說";
+        fallbackToText("麥克風目前無法啟動");
+        return;
+      }
       recognitionTimeout = setTimeout(() => {
         if (voiceMode !== "listening") return;
         stopVoice();
@@ -2846,12 +2864,34 @@ const STORE_KEY = "grandmaVoiceLogs";
       }
     }
 
-    function fallbackToText(reason) {
-      voiceText.textContent = `${reason}，已切換成文字輸入。`;
-      const typed = window.prompt("請直接輸入想說的話：", "我量好了");
-      if (typed && typed.trim()) {
-        parseVoice(typed.trim());
+    function showVoiceFallback(reason, initialText = "") {
+      if (!voiceFallbackBox || !voiceFallbackInput) return;
+      voiceText.textContent = `${reason}，可以直接打字給管家。`;
+      voiceFallbackBox.classList.remove("hidden");
+      voiceFallbackInput.value = initialText;
+      voiceFallbackBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      voiceFallbackInput.focus();
+    }
+
+    function hideVoiceFallback() {
+      if (!voiceFallbackBox) return;
+      voiceFallbackBox.classList.add("hidden");
+    }
+
+    async function submitVoiceFallback() {
+      const text = voiceFallbackInput ? voiceFallbackInput.value.trim() : "";
+      if (!text) {
+        voiceText.textContent = "請先說或輸入一件事情。";
+        if (voiceFallbackInput) voiceFallbackInput.focus();
+        return;
       }
+      hideVoiceFallback();
+      if (voiceFallbackInput) voiceFallbackInput.value = "";
+      await parseVoice(text);
+    }
+
+    function fallbackToText(reason) {
+      showVoiceFallback(reason);
     }
 
     function saveHealth() {
@@ -3630,7 +3670,12 @@ const STORE_KEY = "grandmaVoiceLogs";
     });
     document.querySelectorAll("[data-butler-example]").forEach(btn => {
       btn.addEventListener("click", () => {
-        lifeNoteInput.value = btn.dataset.butlerExample || "";
+        const example = btn.dataset.butlerExample || "";
+        if (getView() === "grandma") {
+          showVoiceFallback("我先把示範句放在這裡，你可以修改後送出", example);
+          return;
+        }
+        lifeNoteInput.value = example;
         lifeNoteInput.scrollIntoView({ behavior: "smooth", block: "center" });
         lifeNoteInput.focus();
         actionStatus.textContent = "管家已幫你放進輸入框，確認後按「讓管家幫我整理」。";
@@ -3658,7 +3703,15 @@ const STORE_KEY = "grandmaVoiceLogs";
     document.getElementById("saveKeywordBtn").addEventListener("click", saveKeywordRule);
     document.getElementById("iconModeBtn").addEventListener("click", toggleIconMode);
     document.getElementById("addMedicineBtn").addEventListener("click", addMedicine);
-    elderSpeakBtn.addEventListener("click", handleElderSpeak);
+    if (elderSpeakBtn) elderSpeakBtn.addEventListener("click", handleElderSpeak);
+    if (voiceFallbackSubmitBtn) voiceFallbackSubmitBtn.addEventListener("click", submitVoiceFallback);
+    if (voiceFallbackCancelBtn) voiceFallbackCancelBtn.addEventListener("click", () => {
+      hideVoiceFallback();
+      voiceText.textContent = "好，想到事情再跟我說。";
+    });
+    if (voiceFallbackInput) voiceFallbackInput.addEventListener("keydown", event => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") submitVoiceFallback();
+    });
     elderEmergencyBtn.addEventListener("click", handleElderEmergency);
     elderFamilyBtn.addEventListener("click", handleElderFamily);
     elderDoneBtn.addEventListener("click", handleElderDone);
@@ -3685,12 +3738,12 @@ const STORE_KEY = "grandmaVoiceLogs";
       btn.addEventListener("click", () => recordMood(btn.dataset.mood));
     });
     floatingActionBtn.addEventListener("click", () => {
-      const view = getView();
-      if (view === "grandma") {
-        document.getElementById("lifeNoteInput").focus();
-      } else {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+      if (getView() === "grandma") {
+        toggleVoiceByClick();
+        return;
       }
+      lifeNoteInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      lifeNoteInput.focus();
     });
 
     function safeRun(label, fn) {
