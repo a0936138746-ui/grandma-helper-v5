@@ -3774,6 +3774,10 @@ const STORE_KEY = "grandmaVoiceLogs";
         renderInvestmentDashboard();
         renderInvestmentPositions();
         renderMarketBriefs();
+        renderSystemStatus();
+        renderTodayFocus();
+        scheduleAllTaskReminders();
+        scheduleInvestmentReminders();
         actionStatus.textContent = "已匯入資料備份。";
       } catch (_) {
         actionStatus.textContent = "匯入失敗：請確認貼上的是完整備份文字。";
