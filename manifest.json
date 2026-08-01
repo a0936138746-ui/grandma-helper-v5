@@ -1,7 +1,7 @@
 {
-  "name": "乖孫管家",
-  "short_name": "乖孫管家",
-  "description": "多情境智能管家，支援長者照護、學生、老師、家庭與小商家。",
+  "name": "智能管家",
+  "short_name": "個人事項",
+  "description": "多情境智能管家，可用於個人待辦、投資紀律、長輩照護、學生作業、老師情境、家庭情境與小商家管理。",
   "start_url": "./app.html",
   "scope": "./",
   "display": "standalone",

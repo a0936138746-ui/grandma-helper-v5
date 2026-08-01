@@ -1,12 +1,12 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>乖孫管家 v5 多情境版</title>
+  <title>智能管家 v5 一個管家版</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#226f66" />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=20260801f" />
 </head>
 <body>
   <div id="browserGate" class="browser-gate hidden" role="dialog" aria-live="polite" aria-label="瀏覽器提醒">
@@ -25,45 +25,133 @@
   </div>
   <div id="setupWizard" class="browser-gate hidden" role="dialog" aria-live="polite" aria-label="設定精靈">
     <div class="browser-gate-card">
-      <p class="browser-gate-title">先選一個使用情境</p>
+      <p class="browser-gate-title">管家先照顧哪一塊？</p>
       <p class="browser-gate-text">不用研究功能，先選最接近的用途。之後都可以再改。</p>
+      <p class="browser-gate-text">不確定也沒關係，直接說話，管家會自己判斷。</p>
       <div class="wizard-grid">
-        <button class="wizard-option" type="button" data-wizard-profile="elder">長輩照護</button>
+        <button class="wizard-option" type="button" data-wizard-profile="personal">個人事項</button>
+        <button class="wizard-option" type="button" data-wizard-profile="investment">投資紀律</button>
+        <button class="wizard-option" type="button" data-wizard-profile="elder">長輩情境</button>
         <button class="wizard-option" type="button" data-wizard-profile="student">讀書作業</button>
-        <button class="wizard-option" type="button" data-wizard-profile="home">家庭生活</button>
-        <button class="wizard-option" type="button" data-wizard-profile="business">小生意</button>
-        <button class="wizard-option" type="button" data-wizard-profile="teacher">老師班務</button>
+        <button class="wizard-option" type="button" data-wizard-profile="home">家庭情境</button>
+        <button class="wizard-option" type="button" data-wizard-profile="business">小生意情境</button>
+        <button class="wizard-option" type="button" data-wizard-profile="teacher">老師情境</button>
       </div>
       <button id="skipWizardBtn" class="browser-gate-secondary" type="button">先用預設</button>
     </div>
   </div>
   <main class="app">
     <section class="card">
-      <h1>乖孫管家</h1>
+      <h1 id="appTitle">智能管家</h1>
+      <p class="version-tag">v5.6.0 訂單連接版</p>
       <p id="today"></p>
       <p id="reminder" class="status"></p>
       <div id="systemStatusGrid" class="status-grid"></div>
       <div id="todayFocus" class="today-focus"></div>
-      <p class="hint">阿嬤你直接說就好，不用找功能鍵。</p>
+      <p id="mainHint" class="hint">你直接說就好，管家會幫你整理、提醒和追蹤。</p>
+    </section>
+
+    <section class="card butler-overview" aria-labelledby="butlerOverviewTitle">
+      <div class="butler-overview-head">
+        <div>
+          <p class="eyebrow">不用找功能</p>
+          <h2 id="butlerOverviewTitle">想到什麼，直接跟管家說</h2>
+        </div>
+        <span class="butler-ready" aria-label="管家已準備好">管家在</span>
+      </div>
+      <p class="butler-overview-copy">管家會自己判斷這是生活、照護、投資、讀書、家庭或工作，不用先選對分類。</p>
+      <div class="capability-chips" aria-label="管家能力">
+        <span>生活待辦</span>
+        <span>長輩照護</span>
+        <span>投資紀律</span>
+        <span>讀書班務</span>
+        <span>家庭採買</span>
+        <span>小生意</span>
+      </div>
+      <details class="butler-examples">
+        <summary>我可以怎麼說？</summary>
+        <div class="butler-example-list">
+          <button type="button" data-butler-example="明天早上十點提醒我去診所拿藥">「明天早上十點提醒我去診所拿藥」</button>
+          <button type="button" data-butler-example="菜市場要買高麗菜、雞蛋和醬油">「菜市場要買高麗菜、雞蛋和醬油」</button>
+          <button type="button" data-butler-example="今天買了台積電，成交價 930 元，先幫我追蹤">「今天買了台積電，成交價 930 元，先幫我追蹤」</button>
+        </div>
+      </details>
     </section>
 
     <input id="grandmaViewToggle" class="view-radio" type="radio" name="viewToggle" checked />
     <input id="familyViewToggle" class="view-radio" type="radio" name="viewToggle" />
     <nav class="view-tabs" aria-label="使用模式">
-      <label id="grandmaViewBtn" class="view-btn" for="grandmaViewToggle">阿嬤使用</label>
+      <label id="grandmaViewBtn" class="view-btn" for="grandmaViewToggle">簡單使用</label>
       <label id="familyViewBtn" class="view-btn" for="familyViewToggle">家人管理</label>
     </nav>
 
     <section class="card admin-section">
-      <h2>情境切換</h2>
+      <h2>管家優先照顧</h2>
       <select id="profileSelect" class="input">
-        <option value="elder">長者照護</option>
-        <option value="student">學生</option>
-        <option value="teacher">老師</option>
-        <option value="home">家庭</option>
-        <option value="business">小商家</option>
+        <option value="personal">個人事項</option>
+        <option value="investment">投資紀律</option>
+        <option value="elder">長輩照護</option>
+        <option value="student">學生讀書</option>
+        <option value="teacher">老師班務</option>
+        <option value="home">家庭生活</option>
+        <option value="business">小生意</option>
       </select>
       <p id="profileStatus" class="hint"></p>
+    </section>
+
+    <section class="card admin-section order-connection-card">
+      <h2>陳媽媽肉粽訂單連接</h2>
+      <p class="hint">管家目前只讀取訂單摘要，不會修改、刪除或出貨。</p>
+      <input id="orderConnectionToken" class="input" type="password" autocomplete="off" placeholder="輸入訂單連接密碼" />
+      <div class="grid">
+        <button id="saveOrderConnectionBtn" class="mini-btn" type="button">儲存連接密碼</button>
+        <button id="refreshOrderSummaryBtn" class="mini-btn" type="button">更新訂單摘要</button>
+      </div>
+      <p id="orderConnectionStatus" class="hint">尚未連接訂單系統。</p>
+      <div id="orderSummaryStats" class="status-grid"></div>
+      <div id="orderPriorityList"></div>
+      <a class="order-system-link" href="https://chen-mama-zongzi.vercel.app/" target="_blank" rel="noopener noreferrer">開啟完整訂單系統</a>
+    </section>
+    <section id="investmentNotice" class="card admin-section investment-only hidden">
+      <h2>投資紀律安全邊界</h2>
+      <p class="status">目前只做觀察、紀錄、到價提醒、投資日記與風險檢查。</p>
+      <p class="hint">此版本不提供保證獲利建議、不串券商帳戶、不自動下單。未來若要開啟有限額操作，需另做授權、金額上限、白名單、停機機制與完整交易紀錄。</p>
+    </section>
+
+    <section id="investmentDashboard" class="card admin-section investment-only hidden">
+      <h2>投資儀表板</h2>
+      <div id="investmentStats" class="status-grid"></div>
+      <h2 style="margin-top:18px;">持倉與觀察清單</h2>
+      <div id="investmentPositionList"></div>
+      <div id="investmentRiskBox" class="today-focus"></div>
+      <div id="investmentReminderStatus" class="today-focus"></div>
+      <div id="investmentRiskConfigBox" class="today-focus"></div>
+      <div id="investmentJournalBox" class="today-focus"></div>
+      <div id="investmentStrategyBox" class="today-focus"></div>
+      <div class="grid">
+        <input id="capitalInput" class="input" type="number" min="0" step="1000" placeholder="總資金，例如 100000" />
+        <input id="maxLossInput" class="input" type="number" min="0" step="100" placeholder="單筆最多虧損，例如 1000" />
+        <input id="maxPositionPctInput" class="input" type="number" min="1" max="100" step="1" placeholder="單檔投入上限 %，例如 20" />
+      </div>
+      <button id="saveRiskConfigBtn" class="mini-btn" type="button">儲存資金控管</button>
+      <div class="grid">
+        <button id="enableInvestmentRemindersBtn" class="mini-btn" type="button">開啟投資提醒</button>
+        <button id="disableInvestmentRemindersBtn" class="mini-btn" type="button">關閉投資提醒</button>
+        <button id="testInvestmentReminderBtn" class="mini-btn" type="button">10 秒測試提醒</button>
+      </div>
+      <h2 style="margin-top:18px;">市場分析筆記</h2>
+      <textarea id="marketBriefInput" class="input" rows="5" placeholder="例如：昨晚美股科技股轉弱，美元走強，中東地緣風險升高。這裡先手動紀錄，未來可接 API 自動整理。"></textarea>
+      <div class="grid">
+        <button id="morningBriefTemplateBtn" class="mini-btn" type="button">早報模板</button>
+        <button id="potentialTemplateBtn" class="mini-btn" type="button">潛力分析模板</button>
+        <button id="riskTemplateBtn" class="mini-btn" type="button">風險檢查模板</button>
+        <button id="clearMarketBriefBtn" class="mini-btn" type="button">清空輸入</button>
+      </div>
+      <button id="saveMarketBriefBtn" class="mini-btn" type="button">儲存市場分析</button>
+      <div id="marketBriefList"></div>
+      <button id="investmentReportBtn" class="mini-btn" type="button">產生今日雷達</button>
+      <textarea id="investmentReportText" class="input" rows="7" readonly placeholder="投資週報會顯示在這裡"></textarea>
+      <button id="copyInvestmentReportBtn" class="mini-btn" type="button">複製投資週報</button>
     </section>
 
     <section class="card admin-section">
@@ -75,13 +163,21 @@
     </section>
 
     <section class="card elder-simple-section">
-      <h2>跟乖孫說</h2>
-      <button id="voiceBtn" class="voice-btn" type="button">跟乖孫說</button>
+      <h2 id="assistantSectionTitle">跟管家說</h2>
+      <button id="voiceBtn" class="voice-btn" type="button">跟管家說</button>
       <p id="voiceText" class="hint">想到什麼直接說，管家會幫你整理。</p>
+      <div id="butlerFollowup" class="butler-followup hidden" role="status" aria-live="polite">
+        <p class="butler-followup-label">管家想確認一件事</p>
+        <p id="butlerFollowupQuestion"></p>
+        <div class="followup-actions">
+          <button id="answerFollowupBtn" class="mini-btn" type="button">直接回答管家</button>
+          <button id="skipFollowupBtn" class="mini-btn secondary" type="button">先不用</button>
+        </div>
+      </div>
       <div class="grid" style="margin-top:10px;">
-        <button id="elderSpeakBtn" class="big-btn" type="button">跟乖孫說</button>
-        <button id="elderEmergencyBtn" class="big-btn alert" type="button">我不舒服</button>
-        <button id="elderFamilyBtn" class="big-btn" type="button">找家人</button>
+        <button id="elderSpeakBtn" class="big-btn" type="button">跟管家說</button>
+        <button id="elderEmergencyBtn" class="big-btn alert" type="button">重要狀況</button>
+        <button id="elderFamilyBtn" class="big-btn" type="button">聯絡對象</button>
         <button id="elderDoneBtn" class="big-btn" type="button">我做好了</button>
       </div>
     </section>
@@ -107,8 +203,8 @@
     </section>
 
     <section class="card admin-section">
-      <h2>生活記事</h2>
-      <input id="lifeNoteInput" class="input" placeholder="阿嬤直接說或輸入：去菜市場、再加豆腐、買好了" />
+      <h2 id="lifeNoteTitle">生活記事</h2>
+      <input id="lifeNoteInput" class="input" placeholder="直接說或輸入：明天開會、買咖啡、診所拿藥、客戶要回覆" />
       <button id="saveLifeNoteBtn" class="save-btn" type="button">讓管家幫我整理</button>
       <p id="lifeNoteStatus" class="hint"></p>
       <div id="taskGroupSummary"></div>
@@ -118,7 +214,7 @@
 
     <section class="card admin-section">
       <h2>主動關懷</h2>
-      <p id="careMessage" class="status">管家會依時間主動關心阿嬤。</p>
+      <p id="careMessage" class="status">管家會依時間主動關心與提醒。</p>
       <div class="grid" style="margin-top:10px;">
         <button id="careChatBtn" class="big-btn" type="button">陪我聊一下</button>
         <button id="careMusicBtn" class="big-btn" type="button">想聽老歌</button>
@@ -147,10 +243,10 @@
     </section>
 
     <section class="card admin-section">
-      <h2>家人週報</h2>
-      <button id="weeklyBtn" class="mini-btn" type="button">產生家人週報</button>
-      <textarea id="weeklyReportText" class="input" rows="6" readonly placeholder="家人週報會顯示在這裡"></textarea>
-      <button id="copyWeeklyBtn" class="mini-btn" type="button">複製家人週報</button>
+      <h2 id="weeklyTitle">週報摘要</h2>
+      <button id="weeklyBtn" class="mini-btn" type="button">產生週報</button>
+      <textarea id="weeklyReportText" class="input" rows="6" readonly placeholder="週報會顯示在這裡"></textarea>
+      <button id="copyWeeklyBtn" class="mini-btn" type="button">複製週報</button>
     </section>
 
     <section class="card admin-section">
@@ -214,7 +310,7 @@
     <aside class="caretaker-panel" aria-live="polite">
       <div class="caretaker-row">
         <div>
-          <p class="caretaker-title">乖孫管家正在看著</p>
+          <p class="caretaker-title">智能管家正在看著</p>
           <p id="floatingStatus" class="caretaker-message">今天還沒有新的提醒。</p>
         </div>
         <button id="floatingActionBtn" class="caretaker-action" type="button">我知道了</button>
@@ -222,7 +318,7 @@
     </aside>
   </main>
 
-  <script src="./storage.js" defer></script>
-  <script src="./app.js" defer></script>
+  <script src="./storage.js?v=20260801f" defer></script>
+  <script src="./app.js?v=20260801f" defer></script>
 </body>
 </html>

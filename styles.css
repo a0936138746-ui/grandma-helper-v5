@@ -24,9 +24,148 @@
       box-shadow: 0 8px 28px rgba(91, 54, 20, 0.1);
     }
     h1 { margin: 0 0 6px; font-size: 34px; }
+    .version-tag {
+      margin: 0 0 8px;
+      font-size: 16px;
+      color: #6d5841;
+      font-weight: 700;
+    }
     h2 { margin: 0 0 12px; font-size: 30px; }
     p { margin: 8px 0; font-size: 25px; line-height: 1.5; }
     .hint { font-size: 22px; color: #6d5841; }
+
+    .butler-overview {
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 92% 8%, rgba(236, 174, 87, .22), transparent 34%),
+        linear-gradient(145deg, #fffdf7, #f4fbf8);
+      border: 2px solid #cfe1d9;
+    }
+
+    .butler-overview-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .butler-overview-head h2 { margin: 2px 0 8px; }
+
+    .eyebrow {
+      margin: 0;
+      color: #9a5a22;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+
+    .butler-ready {
+      flex: 0 0 auto;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: #237b6c;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      box-shadow: 0 7px 16px rgba(35, 123, 108, .18);
+    }
+
+    .butler-overview-copy {
+      margin: 0 0 14px;
+      color: #4f493f;
+      font-size: 20px;
+      line-height: 1.6;
+    }
+
+    .capability-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .capability-chips span {
+      padding: 8px 12px;
+      border: 1px solid #b9d6cd;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .8);
+      color: #285c52;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .butler-examples {
+      border-top: 1px solid #d8e5df;
+      padding-top: 12px;
+    }
+
+    .butler-examples summary {
+      cursor: pointer;
+      color: #5f4b35;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .butler-example-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .butler-example-list button {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #d9d0c2;
+      border-radius: 12px;
+      background: #fff;
+      color: #463b30;
+      font: inherit;
+      font-size: 17px;
+      line-height: 1.45;
+      text-align: left;
+    }
+
+    .butler-example-list button:active {
+      transform: translateY(1px);
+      background: #f7f0e4;
+    }
+
+    .butler-followup {
+      margin: 14px 0 4px;
+      padding: 16px;
+      border: 2px solid #e4b565;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #fff9e9, #fffdf8);
+      box-shadow: 0 8px 18px rgba(113, 74, 31, .12);
+    }
+
+    .butler-followup-label {
+      margin: 0 0 5px;
+      color: #9a5a22;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .butler-followup p:not(.butler-followup-label) {
+      margin: 0;
+      color: #3f352a;
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.5;
+    }
+
+    .followup-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .mini-btn.secondary {
+      background: #f3eee5;
+      color: #665746;
+      border-color: #d5c9ba;
+    }
     .status {
       border-radius: 16px;
       background: #fff5e5;
@@ -170,6 +309,7 @@
       display: block !important;
     }
     .hidden { display: none; }
+    .investment-only.hidden { display: none !important; }
     .browser-gate {
       position: fixed;
       inset: 0;
@@ -351,3 +491,37 @@
       font-size: 38px;
     }
   
+
+    .order-connection-card {
+      border: 2px solid #e5c58e;
+      background: linear-gradient(145deg, #fffdf7, #fff8e9);
+    }
+
+    .order-system-link {
+      display: block;
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #7a441f;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .order-priority-item {
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid #dfd2c1;
+      border-radius: 12px;
+      background: #fff;
+      color: #493b2f;
+      font-size: 17px;
+      line-height: 1.5;
+    }
+
+    .order-priority-item.urgent {
+      border-color: #d8785f;
+      background: #fff3ef;
+    }
