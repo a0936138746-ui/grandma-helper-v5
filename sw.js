@@ -1,11 +1,11 @@
-const CACHE_NAME = "personal-assistant-v5-cache-v32";
+const CACHE_NAME = "personal-assistant-v5-cache-v33";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./app.html",
-  "./styles.css?v=20260802e",
-  "./storage.js?v=20260802e",
-  "./app.js?v=20260802e",
+  "./styles.css?v=20260802f",
+  "./storage.js?v=20260802f",
+  "./app.js?v=20260802f",
   "./manifest.json"
 ];
 
@@ -58,5 +58,20 @@ self.addEventListener("fetch", event => {
         return response;
       })
       .catch(() => caches.match(event.request).then(cached => cached || caches.match("./app.html")))
+  );
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || "./app.html", self.location.origin).href;
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(windowClients => {
+      const existing = windowClients.find(client => client.url.startsWith(self.location.origin));
+      if (existing) {
+        existing.navigate(targetUrl);
+        return existing.focus();
+      }
+      return clients.openWindow(targetUrl);
+    })
   );
 });

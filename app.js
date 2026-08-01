@@ -296,6 +296,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       taskCards = [];
     }
     let taskReminderTimers = {};
+    let reminderRecoveryTimer = null;
 
     let keywordRules = [];
     try {
@@ -439,19 +440,27 @@ const STORE_KEY = "grandmaVoiceLogs";
 
     function renderSystemStatus() {
       const healthCount = logs.filter(item => item.kind === "健康").length;
-      const activeTaskCount = taskCards.filter(card => card.status === "進行中").length;
+      const activeTasks = taskCards.filter(card => card.status === "進行中");
+      const activeTaskCount = activeTasks.length;
+      const dueTaskCount = activeTasks.filter(card => card.reminderAt && new Date(card.reminderAt).getTime() <= Date.now()).length;
       const alertCount = logs.filter(item => /警示|緊急|升級/.test(item.kind)).length;
       const keywordCount = keywordRules.length;
       systemStatusGrid.innerHTML = [
         `健康 ${healthCount} 筆`,
-        `待辦 ${activeTaskCount} 件`,
+        `待辦 ${activeTaskCount} 件${dueTaskCount ? `（到時 ${dueTaskCount}）` : ""}`,
         `警示 ${alertCount} 次`,
         `規則 ${keywordCount} 條`
       ].map(text => `<div class="status-pill">${text}</div>`).join("");
     }
 
     function renderTodayFocus() {
-      const openTasks = taskCards.filter(card => card.status === "進行中");
+      const openTasks = taskCards
+        .filter(card => card.status === "進行中")
+        .sort((a, b) => {
+          const aTime = a.reminderAt ? new Date(a.reminderAt).getTime() : Number.MAX_SAFE_INTEGER;
+          const bTime = b.reminderAt ? new Date(b.reminderAt).getTime() : Number.MAX_SAFE_INTEGER;
+          return aTime - bTime;
+        });
       const nextTask = openTasks[0];
       const latestHealth = logs.find(item => item.kind === "健康");
       const lines = [];
@@ -464,7 +473,10 @@ const STORE_KEY = "grandmaVoiceLogs";
       if (orderStats && Number(orderStats.unpaidAmount || 0) > 0) {
         lines.push(`未收款：NT$ ${orderMoney(orderStats.unpaidAmount)}`);
       }
-      if (nextTask) lines.push(`待辦：${nextTask.title}`);
+      if (nextTask) {
+        const due = nextTask.reminderAt && new Date(nextTask.reminderAt).getTime() <= Date.now();
+        lines.push(`${due ? "已到時間" : "待辦"}：${nextTask.title}`);
+      }
       if (latestHealth) lines.push(`最近健康：${latestHealth.detail}`);
       if (!lines.length) lines.push("目前沒有急著處理的事情。");
       todayFocus.innerHTML = `<p class="today-focus-title">今天最重要</p><p class="hint">${lines.join("<br>")}</p>`;
@@ -2470,25 +2482,85 @@ const STORE_KEY = "grandmaVoiceLogs";
       return `${lead}「${card.title}」${items}。`;
     }
 
+    function reminderWasDelivered(card) {
+      return Boolean(card.lastReminderFor && card.lastReminderFor === card.reminderAt);
+    }
+
+    function markReminderDelivered(card) {
+      card.lastReminderFor = card.reminderAt;
+      card.lastReminderAt = new Date().toISOString();
+      try { storage.setJSON(TASK_KEY, taskCards); } catch (_) {}
+    }
+
+    function deliverTaskReminder(card, recovered = false) {
+      if (!card || card.status !== "進行中" || reminderWasDelivered(card)) return;
+      markReminderDelivered(card);
+      const baseMessage = buildTaskReminderMessage(card);
+      const message = recovered ? `你剛剛可能錯過提醒。${baseMessage}` : baseMessage;
+      logEvent(recovered ? "補發提醒" : "任務提醒", message);
+      actionStatus.textContent = message;
+      lifeNoteStatus.textContent = message;
+      updateFloatingStatus(message);
+      speak(message);
+      showLocalNotification(recovered ? "管家補發提醒" : "管家提醒", message);
+      startFollowupWatch(card.title);
+    }
+
+    function recoverMissedTaskReminders() {
+      if (reminderRecoveryTimer) clearTimeout(reminderRecoveryTimer);
+      const now = Date.now();
+      const oldest = now - 7 * 24 * 60 * 60 * 1000;
+      const missed = taskCards.filter(card => {
+        const dueAt = card.reminderAt ? new Date(card.reminderAt).getTime() : 0;
+        return card.status === "進行中" && dueAt >= oldest && dueAt <= now && !reminderWasDelivered(card);
+      });
+      if (!missed.length) return;
+      reminderRecoveryTimer = setTimeout(() => {
+        const pending = missed.filter(card => card.status === "進行中" && !reminderWasDelivered(card));
+        if (!pending.length) return;
+        if (pending.length === 1) {
+          deliverTaskReminder(pending[0], true);
+          return;
+        }
+        pending.forEach(markReminderDelivered);
+        const titles = pending.slice(0, 3).map(card => card.title).join("、");
+        const message = `你有 ${pending.length} 件提醒可能錯過：${titles}${pending.length > 3 ? "等" : ""}。我已幫你放到今天最重要。`;
+        logEvent("補發提醒", message);
+        actionStatus.textContent = message;
+        lifeNoteStatus.textContent = message;
+        updateFloatingStatus(message);
+        speak(message);
+        showLocalNotification("管家補發提醒", message);
+      }, 500);
+    }
+
     function scheduleTaskReminder(card) {
-      if (!card.reminderAt || card.status !== "進行中") return;
+      if (!card.reminderAt || card.status !== "進行中" || reminderWasDelivered(card)) return;
       if (taskReminderTimers[card.id]) clearTimeout(taskReminderTimers[card.id]);
       const delay = new Date(card.reminderAt).getTime() - Date.now();
       if (delay <= 0) return;
+      const maxDelay = 24 * 60 * 60 * 1000;
       taskReminderTimers[card.id] = setTimeout(() => {
-        if (card.status !== "進行中") return;
-        const message = buildTaskReminderMessage(card);
-        logEvent("任務提醒", message);
-        actionStatus.textContent = message;
-        speak(message);
-        startFollowupWatch(card.title);
-      }, delay);
+        if (delay > maxDelay) {
+          scheduleTaskReminder(card);
+          return;
+        }
+        deliverTaskReminder(card);
+      }, Math.min(delay, maxDelay));
     }
 
     function scheduleAllTaskReminders() {
       Object.values(taskReminderTimers).forEach(timer => clearTimeout(timer));
       taskReminderTimers = {};
       taskCards.forEach(scheduleTaskReminder);
+      recoverMissedTaskReminders();
+    }
+
+    function refreshReminderReliability() {
+      if (document.visibilityState && document.visibilityState !== "visible") return;
+      scheduleAllTaskReminders();
+      renderSystemStatus();
+      renderTodayFocus();
     }
 
     function makeTaskTitle(category, text) {
@@ -2694,13 +2766,17 @@ const STORE_KEY = "grandmaVoiceLogs";
       }).join("");
 
       document.querySelectorAll("[data-test-remind-task]").forEach(btn => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", async () => {
           const card = taskCards[Number(btn.dataset.testRemindTask)];
           if (!card) return;
+          captureUndoSnapshot(`設定測試提醒：${card.title}`);
+          const notificationReady = await requestLocalNotificationPermission();
           card.reminderAt = new Date(Date.now() + 10 * 1000).toISOString();
+          card.lastReminderFor = "";
+          card.lastReminderAt = "";
           card.updatedAt = new Date().toISOString();
           persistTaskCards();
-          const reply = `好，10 秒後測試提醒「${card.title}」。`;
+          const reply = `好，10 秒後測試提醒「${card.title}」。${notificationReady ? "也會顯示系統通知。" : "請先保持管家頁面開啟。"}`;
           lifeNoteStatus.textContent = reply;
           updateFloatingStatus(reply);
           speak(reply);
@@ -2708,13 +2784,17 @@ const STORE_KEY = "grandmaVoiceLogs";
       });
 
       document.querySelectorAll("[data-remind-task]").forEach(btn => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", async () => {
           const card = taskCards[Number(btn.dataset.remindTask)];
           if (!card) return;
+          captureUndoSnapshot(`設定提醒：${card.title}`);
+          const notificationReady = await requestLocalNotificationPermission();
           card.reminderAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+          card.lastReminderFor = "";
+          card.lastReminderAt = "";
           card.updatedAt = new Date().toISOString();
           persistTaskCards();
-          const reply = `好，我等一下再提醒你「${card.title}」。`;
+          const reply = `好，我等一下再提醒你「${card.title}」。${notificationReady ? "也會顯示系統通知。" : "請先保持管家頁面開啟。"}`;
           lifeNoteStatus.textContent = reply;
           updateFloatingStatus(reply);
           speak(reply);
@@ -3208,7 +3288,10 @@ const STORE_KEY = "grandmaVoiceLogs";
             registration.showNotification(title, {
               body,
               icon: "./icons/icon-192.png",
-              badge: "./icons/icon-192.png"
+              badge: "./icons/icon-192.png",
+              tag: `butler-${title}-${String(body).slice(0, 24)}`,
+              renotify: false,
+              data: { url: "./app.html" }
             });
           }).catch(() => new Notification(title, { body }));
         } else {
@@ -3674,7 +3757,11 @@ const STORE_KEY = "grandmaVoiceLogs";
           storage.setJSON(CUSTOM_ACTIONS_KEY, customActions);
           storage.setJSON(MARKET_BRIEFS_KEY, marketBriefs);
           storage.setJSON(INVESTMENT_POSITIONS_KEY, investmentPositions);
+          storage.setJSON(INVESTMENT_JOURNAL_KEY, investmentJournal);
+          storage.remove(UNDO_SNAPSHOT_KEY);
         } catch (_) {}
+        lastUndoSnapshot = null;
+        renderUndoAction();
         renderSummary();
         renderHabits();
         renderTaskCards();
@@ -3847,6 +3934,11 @@ const STORE_KEY = "grandmaVoiceLogs";
     document.querySelectorAll("[data-mood]").forEach(btn => {
       btn.addEventListener("click", () => recordMood(btn.dataset.mood));
     });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") refreshReminderReliability();
+    });
+    window.addEventListener("focus", refreshReminderReliability);
+
     floatingActionBtn.addEventListener("click", () => {
       if (getView() === "grandma") {
         toggleVoiceByClick();
