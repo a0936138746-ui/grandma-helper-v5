@@ -305,7 +305,7 @@
     #grandmaViewToggle:checked ~ .admin-section {
       display: none !important;
     }
-    #familyViewToggle:checked ~ .admin-section {
+    #familyViewToggle:checked ~ .admin-section:not(.hidden) {
       display: block !important;
     }
     .hidden { display: none; }
