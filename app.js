@@ -6,6 +6,7 @@ const STORE_KEY = "grandmaVoiceLogs";
     const voiceFallbackInput = document.getElementById("voiceFallbackInput");
     const voiceFallbackSubmitBtn = document.getElementById("voiceFallbackSubmitBtn");
     const voiceFallbackCancelBtn = document.getElementById("voiceFallbackCancelBtn");
+    const undoLastBtn = document.getElementById("undoLastBtn");
     const summary = document.getElementById("summary");
     const reminder = document.getElementById("reminder");
     const today = document.getElementById("today");
@@ -137,6 +138,7 @@ const STORE_KEY = "grandmaVoiceLogs";
     const BUTLER_FOLLOWUP_KEY = "grandmaHelperButlerFollowup";
     const ORDER_CONNECTION_TOKEN_KEY = "grandmaHelperOrderConnectionToken";
     const ORDER_SUMMARY_CACHE_KEY = "grandmaHelperOrderSummaryCache";
+    const UNDO_SNAPSHOT_KEY = "grandmaHelperUndoSnapshot";
 
     const profiles = {
       personal: {
@@ -328,9 +330,6 @@ const STORE_KEY = "grandmaVoiceLogs";
       marketBriefs = storage.getJSON(MARKET_BRIEFS_KEY, []);
     } catch (_) {
       marketBriefs = [];
-      investmentJournal = [];
-      investmentReminderConfig = { enabled: false };
-      investmentRiskConfig = { capital: 0, maxLoss: 0, maxPositionPct: 20 };
     }
 
     let investmentPositions = [];
@@ -386,6 +385,13 @@ const STORE_KEY = "grandmaVoiceLogs";
       logs = storage.getJSON(STORE_KEY, []);
     } catch (_) {
       logs = [];
+    }
+
+    let lastUndoSnapshot = null;
+    try {
+      lastUndoSnapshot = storage.getJSON(UNDO_SNAPSHOT_KEY, null);
+    } catch (_) {
+      lastUndoSnapshot = null;
     }
     let recognition;
     let voiceMode = "idle";
@@ -800,6 +806,7 @@ const STORE_KEY = "grandmaVoiceLogs";
     }
 
     function handleQuickAction(text) {
+      captureUndoSnapshot(text);
       logEvent("回報", text);
       markResponseReceived(text);
       if (text === "我量好了") {
@@ -1081,6 +1088,94 @@ const STORE_KEY = "grandmaVoiceLogs";
       if (!floatingStatus) return;
       const shortText = String(text || "").replace(/\s+/g, " ").trim();
       floatingStatus.textContent = shortText.length > 46 ? `${shortText.slice(0, 46)}...` : shortText;
+    }
+
+    function cloneUndoValue(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function renderUndoAction() {
+      if (!undoLastBtn) return;
+      const expired = lastUndoSnapshot && Date.now() - Number(lastUndoSnapshot.createdAt || 0) > 24 * 60 * 60 * 1000;
+      if (expired) {
+        lastUndoSnapshot = null;
+        try { storage.remove(UNDO_SNAPSHOT_KEY); } catch (_) {}
+      }
+      undoLastBtn.classList.toggle("hidden", !lastUndoSnapshot);
+    }
+
+    function captureUndoSnapshot(label) {
+      lastUndoSnapshot = {
+        createdAt: Date.now(),
+        label: String(label || "剛剛操作").slice(0, 60),
+        logs: cloneUndoValue(logs),
+        habits: cloneUndoValue(habits),
+        taskCards: cloneUndoValue(taskCards),
+        moodLogs: cloneUndoValue(moodLogs),
+        medicines: cloneUndoValue(medicines),
+        marketBriefs: cloneUndoValue(marketBriefs),
+        investmentPositions: cloneUndoValue(investmentPositions),
+        investmentJournal: cloneUndoValue(investmentJournal)
+      };
+      try { storage.setJSON(UNDO_SNAPSHOT_KEY, lastUndoSnapshot); } catch (_) {}
+      renderUndoAction();
+    }
+
+    function undoLastAction() {
+      if (!lastUndoSnapshot) {
+        const message = "目前沒有可以復原的操作。";
+        voiceText.textContent = message;
+        lifeNoteStatus.textContent = message;
+        speak(message);
+        return false;
+      }
+      const snapshot = lastUndoSnapshot;
+      logs = cloneUndoValue(snapshot.logs || []);
+      habits = cloneUndoValue(snapshot.habits || []);
+      taskCards = cloneUndoValue(snapshot.taskCards || []);
+      moodLogs = cloneUndoValue(snapshot.moodLogs || []);
+      medicines = cloneUndoValue(snapshot.medicines || []);
+      marketBriefs = cloneUndoValue(snapshot.marketBriefs || []);
+      investmentPositions = cloneUndoValue(snapshot.investmentPositions || []);
+      investmentJournal = cloneUndoValue(snapshot.investmentJournal || []);
+      try {
+        storage.setJSON(STORE_KEY, logs);
+        storage.setJSON(HABIT_KEY, habits);
+        storage.setJSON(TASK_KEY, taskCards);
+        storage.setJSON(MOOD_KEY, moodLogs);
+        storage.setJSON(MEDICINE_KEY, medicines);
+        storage.setJSON(MARKET_BRIEFS_KEY, marketBriefs);
+        storage.setJSON(INVESTMENT_POSITIONS_KEY, investmentPositions);
+        storage.setJSON(INVESTMENT_JOURNAL_KEY, investmentJournal);
+        storage.remove(UNDO_SNAPSHOT_KEY);
+      } catch (_) {}
+      lastUndoSnapshot = null;
+      renderSummary();
+      renderHabits();
+      renderTaskCards();
+      renderMoodTrend();
+      renderMedicines();
+      renderHabitRadar();
+      renderHealthTrend();
+      renderMarketBriefs();
+      renderInvestmentDashboard();
+      renderSystemStatus();
+      renderTodayFocus();
+      scheduleAllTaskReminders();
+      renderUndoAction();
+      const message = `已復原「${snapshot.label}」。剛剛那次操作已取消。`;
+      voiceText.textContent = message;
+      lifeNoteStatus.textContent = message;
+      updateFloatingStatus(message);
+      speak(message);
+      return true;
+    }
+
+    function handleUndoCommand(text) {
+      const clean = String(text || "").replace(/[，。！？、,.!?\s]/g, "");
+      if (!/^(?:管家|乖孫)?(?:剛剛)?(?:說錯了|記錯了|弄錯了|刪除剛剛那筆|刪掉剛剛那筆|復原剛剛操作|取消剛剛操作)$/.test(clean)) return false;
+      undoLastAction();
+      return true;
     }
 
     function isEmbeddedBrowser() {
@@ -2000,11 +2095,10 @@ const STORE_KEY = "grandmaVoiceLogs";
       )).join("");
       marketBriefList.querySelectorAll("[data-delete-market-brief]").forEach(btn => {
         btn.addEventListener("click", () => {
+          captureUndoSnapshot("刪除市場分析");
           marketBriefs.splice(Number(btn.dataset.deleteMarketBrief), 1);
           try {
             storage.setJSON(MARKET_BRIEFS_KEY, marketBriefs);
-          storage.setJSON(INVESTMENT_POSITIONS_KEY, investmentPositions);
-          storage.setJSON(INVESTMENT_JOURNAL_KEY, investmentJournal);
           } catch (_) {}
           renderMarketBriefs();
           renderInvestmentDashboard();
@@ -2013,6 +2107,7 @@ const STORE_KEY = "grandmaVoiceLogs";
     }
 
     function recordMood(mood) {
+      captureUndoSnapshot(`心情：${mood}`);
       moodLogs.unshift({
         mood,
         ts: new Date().toLocaleString("zh-TW")
@@ -2059,6 +2154,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         actionStatus.textContent = "請輸入藥名和時間。";
         return;
       }
+      captureUndoSnapshot(`新增藥物：${name}`);
       medicines.unshift({
         id: String(Date.now()),
         name,
@@ -2522,6 +2618,10 @@ const STORE_KEY = "grandmaVoiceLogs";
         lifeNoteStatus.textContent = "請先輸入想記下來的事情。";
         return;
       }
+      if (handleUndoCommand(text)) {
+        lifeNoteInput.value = "";
+        return;
+      }
       if (handlePendingButlerAnswer(text)) {
         lifeNoteInput.value = "";
         return;
@@ -2540,6 +2640,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         updateFloatingStatus("管家已自動整理到健康紀錄");
         return;
       }
+      captureUndoSnapshot(text);
       const priceUpdated = upsertInvestmentPrice(text);
       const tracked = upsertInvestmentPosition(text);
       const confirmed = !tracked && !priceUpdated ? upsertInvestmentConfirmation(text) : false;
@@ -2566,6 +2667,7 @@ const STORE_KEY = "grandmaVoiceLogs";
     function completeTaskCard(index) {
       const card = taskCards[index];
       if (!card) return;
+      captureUndoSnapshot(`完成：${card.title}`);
       card.status = "完成";
       card.updatedAt = new Date().toISOString();
       persistTaskCards();
@@ -2713,6 +2815,7 @@ const STORE_KEY = "grandmaVoiceLogs";
     }
 
     function saveHealthRecord(bp, sugar, note) {
+      captureUndoSnapshot("健康紀錄");
       logEvent("健康", `血壓:${bp || "-"} / 血糖:${sugar || "-"} / 備註:${note || "-"}`);
       document.getElementById("saveStatus").textContent = "已幫你儲存今天紀錄。";
       document.getElementById("bpInput").value = "";
@@ -2922,6 +3025,7 @@ const STORE_KEY = "grandmaVoiceLogs";
 
     function deleteLogEntry(index) {
       if (!Number.isInteger(index) || index < 0 || index >= logs.length) return;
+      captureUndoSnapshot("刪除紀錄");
       const removed = logs.splice(index, 1)[0];
       storage.setJSON(STORE_KEY, logs);
       renderSummary();
@@ -3606,6 +3710,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         storage.remove(INVESTMENT_REMINDERS_KEY);
         storage.remove(INVESTMENT_RISK_CONFIG_KEY);
         storage.remove(INVESTMENT_JOURNAL_KEY);
+        storage.remove(UNDO_SNAPSHOT_KEY);
       } catch (_) {}
       habits = [];
       taskCards = [];
@@ -3614,6 +3719,10 @@ const STORE_KEY = "grandmaVoiceLogs";
       medicines = [];
       customActions = [];
       marketBriefs = [];
+      investmentPositions = [];
+      investmentJournal = [];
+      lastUndoSnapshot = null;
+      renderUndoAction();
       backupText.value = "";
       doctorSummaryText.value = "";
       weeklyReportText.value = "";
@@ -3704,6 +3813,7 @@ const STORE_KEY = "grandmaVoiceLogs";
     document.getElementById("iconModeBtn").addEventListener("click", toggleIconMode);
     document.getElementById("addMedicineBtn").addEventListener("click", addMedicine);
     if (elderSpeakBtn) elderSpeakBtn.addEventListener("click", handleElderSpeak);
+    if (undoLastBtn) undoLastBtn.addEventListener("click", undoLastAction);
     if (voiceFallbackSubmitBtn) voiceFallbackSubmitBtn.addEventListener("click", submitVoiceFallback);
     if (voiceFallbackCancelBtn) voiceFallbackCancelBtn.addEventListener("click", () => {
       hideVoiceFallback();
@@ -3782,6 +3892,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       safeRun("視圖", renderView);
       safeRun("情境", renderProfile);
       safeRun("管家追問", renderButlerFollowup);
+      safeRun("復原操作", renderUndoAction);
       safeRun("訂單摘要", renderOrderSummary);
       if (getOrderConnectionToken() && location.protocol !== "file:") {
         safeRun("訂單同步", fetchOrderSummary);

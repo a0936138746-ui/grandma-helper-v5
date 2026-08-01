@@ -583,3 +583,10 @@
     .admin-subsection h2 {
       font-size: 25px;
     }
+    .undo-last-btn {
+      width: 100%;
+      margin: 10px 0 2px;
+      border: 2px solid #d4b277;
+      background: #fff9ec;
+      color: #6c471f;
+    }

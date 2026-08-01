@@ -6,7 +6,7 @@
   <title>智能管家 v5 一個管家版</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#226f66" />
-  <link rel="stylesheet" href="./styles.css?v=20260802d" />
+  <link rel="stylesheet" href="./styles.css?v=20260802e" />
 </head>
 <body>
   <div id="browserGate" class="browser-gate hidden" role="dialog" aria-live="polite" aria-label="瀏覽器提醒">
@@ -43,7 +43,7 @@
   <main class="app">
     <section class="card">
       <h1 id="appTitle">智能管家</h1>
-      <p class="version-tag">v5.8.0 操作修正版</p>
+      <p class="version-tag">v5.9.0 安心復原版</p>
       <p id="today"></p>
       <p id="reminder" class="status"></p>
       <div id="systemStatusGrid" class="status-grid"></div>
@@ -166,6 +166,7 @@
       <h2 id="assistantSectionTitle">跟管家說</h2>
       <button id="voiceBtn" class="voice-btn" type="button">跟管家說</button>
       <p id="voiceText" class="hint" role="status" aria-live="polite">想到什麼直接說，管家會幫你整理。</p>
+      <button id="undoLastBtn" class="mini-btn secondary undo-last-btn hidden" type="button">復原剛剛操作</button>
       <div id="voiceFallbackBox" class="voice-fallback hidden">
         <label for="voiceFallbackInput">麥克風不能用也沒關係，直接打字給管家</label>
         <textarea id="voiceFallbackInput" class="input" rows="3" placeholder="例如：明天十點提醒我去拿藥"></textarea>
@@ -332,7 +333,7 @@
     </aside>
   </main>
 
-  <script src="./storage.js?v=20260802d" defer></script>
-  <script src="./app.js?v=20260802d" defer></script>
+  <script src="./storage.js?v=20260802e" defer></script>
+  <script src="./app.js?v=20260802e" defer></script>
 </body>
 </html>
