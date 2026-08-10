@@ -1,6 +1,6 @@
 {
-  "name": "智能管家",
-  "short_name": "個人事項",
+  "name": "智能管家 v6",
+  "short_name": "智能管家",
   "description": "多情境智能管家，可用於個人待辦、投資紀律、長輩照護、學生作業、老師情境、家庭情境與小商家管理。",
   "start_url": "./app.html",
   "scope": "./",

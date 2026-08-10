@@ -1,6 +1,8 @@
 const STORE_KEY = "grandmaVoiceLogs";
     const storage = window.appStorage;
     const voiceBtn = document.getElementById("voiceBtn");
+    const voiceBtnLabel = voiceBtn ? voiceBtn.querySelector(".voice-btn-label") : null;
+    const voiceBtnHelp = voiceBtn ? voiceBtn.querySelector(".voice-btn-help") : null;
     const voiceText = document.getElementById("voiceText");
     const voiceFallbackBox = document.getElementById("voiceFallbackBox");
     const voiceFallbackInput = document.getElementById("voiceFallbackInput");
@@ -425,12 +427,54 @@ const STORE_KEY = "grandmaVoiceLogs";
       window.speechSynthesis.speak(utter);
     }
 
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function setVoiceButtonState(listening) {
+      if (!voiceBtn) return;
+      voiceBtn.classList.toggle("listening", listening);
+      if (voiceBtnLabel) voiceBtnLabel.textContent = listening ? "我正在聽" : "跟管家說";
+      if (voiceBtnHelp) voiceBtnHelp.textContent = listening ? "說完後稍等一下" : "按一下後直接說話";
+      voiceBtn.setAttribute("aria-pressed", listening ? "true" : "false");
+    }
+
     function setReminderByHour() {
       const now = new Date();
-      const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      const next = schedulePlan.find(s => s.time >= hhmm) || schedulePlan[0];
-      reminder.textContent = `下一個提醒 ${next.time}：${next.text}`;
-      updateFloatingStatus(`下一個提醒 ${next.time}：${next.text}`);
+      const activeTasks = taskCards
+        .filter(card => card.status === "進行中" && card.reminderAt && !Number.isNaN(Date.parse(card.reminderAt)))
+        .sort((a, b) => Date.parse(a.reminderAt) - Date.parse(b.reminderAt));
+      const overdueTask = activeTasks.find(card => Date.parse(card.reminderAt) <= now.getTime());
+      const upcomingTask = activeTasks.find(card => Date.parse(card.reminderAt) > now.getTime());
+      const task = overdueTask || upcomingTask;
+
+      if (task) {
+        const due = new Date(task.reminderAt);
+        const prefix = overdueTask ? "已到時間" : "下一個提醒";
+        const message = `${prefix} ${due.toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}：${task.title}`;
+        reminder.textContent = message;
+        updateFloatingStatus(message);
+        return;
+      }
+
+      if (getProfile() === "elder") {
+        const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        const next = schedulePlan.find(item => item.time >= hhmm);
+        if (next) {
+          const message = `下一個照護提醒 ${next.time}：${next.text}`;
+          reminder.textContent = message;
+          updateFloatingStatus(message);
+          return;
+        }
+      }
+
+      reminder.textContent = "目前沒有排定提醒，想到事情直接跟管家說。";
+      updateFloatingStatus("目前沒有排定提醒");
     }
 
     function renderToday() {
@@ -479,7 +523,30 @@ const STORE_KEY = "grandmaVoiceLogs";
       }
       if (latestHealth) lines.push(`最近健康：${latestHealth.detail}`);
       if (!lines.length) lines.push("目前沒有急著處理的事情。");
-      todayFocus.innerHTML = `<p class="today-focus-title">今天最重要</p><p class="hint">${lines.join("<br>")}</p>`;
+      const actions = nextTask
+        ? `<div class="focus-actions"><button class="focus-action primary" type="button" data-focus-complete>這件完成了</button><button class="focus-action" type="button" data-focus-snooze>晚一點提醒</button></div>`
+        : "";
+      todayFocus.innerHTML = `<p class="today-focus-title">今天最重要</p><p class="hint">${lines.map(escapeHtml).join("<br>")}</p>${actions}`;
+      const completeBtn = todayFocus.querySelector("[data-focus-complete]");
+      const snoozeBtn = todayFocus.querySelector("[data-focus-snooze]");
+      if (completeBtn) completeBtn.addEventListener("click", () => completeTaskCard(taskCards.indexOf(nextTask)));
+      if (snoozeBtn) snoozeBtn.addEventListener("click", async () => {
+        const index = taskCards.indexOf(nextTask);
+        if (index < 0) return;
+        captureUndoSnapshot(`延後提醒：${nextTask.title}`);
+        nextTask.reminderAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+        nextTask.lastReminderFor = "";
+        nextTask.lastReminderAt = "";
+        nextTask.updatedAt = new Date().toISOString();
+        persistTaskCards();
+        renderTodayFocus();
+        setReminderByHour();
+        await requestLocalNotificationPermission();
+        const reply = `好，30 分鐘後再提醒你「${nextTask.title}」。`;
+        voiceText.textContent = reply;
+        updateFloatingStatus(reply);
+        speak(reply);
+      });
     }
 
     function escapeOrderText(value) {
@@ -777,8 +844,8 @@ const STORE_KEY = "grandmaVoiceLogs";
       profileSelect.value = profileId;
       if (appTitle) appTitle.textContent = "智能管家";
       if (mainHint) mainHint.textContent = (profile.hint || "你直接說就好，管家會幫你整理。").replace(/助理/g, "管家").replace(/秘書/g, "紀律");
-      if (assistantSectionTitle) assistantSectionTitle.textContent = "跟管家說";
-      if (voiceBtn) voiceBtn.textContent = "跟管家說";
+      if (assistantSectionTitle) assistantSectionTitle.textContent = "想到什麼，跟管家說";
+      setVoiceButtonState(false);
       if (elderSpeakBtn) elderSpeakBtn.textContent = "跟管家說";
       if (elderEmergencyBtn) elderEmergencyBtn.textContent = profile.importantLabel || "重要狀況";
       if (elderFamilyBtn) elderFamilyBtn.textContent = profile.contactLabel || "聯絡對象";
@@ -801,6 +868,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       renderQuickActions();
       careMessage.textContent = buildCareMessage();
       renderSystemStatus();
+      setReminderByHour();
       renderInvestmentDashboard();
       updateFloatingStatus(`管家已開始照顧「${profile.name}」情境`);
     }
@@ -809,7 +877,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       const profile = profiles[getProfile()] || profiles.personal;
       const actions = [...profile.quickActions, ...customActions];
       quickActionGrid.innerHTML = actions.map(action => (
-        `<button class="big-btn${action.alert ? " alert" : ""}" type="button" data-quick="${action.value}">${action.label}</button>`
+        `<button class="big-btn${action.alert ? " alert" : ""}" type="button" data-quick="${escapeHtml(action.value)}">${action.custom ? escapeHtml(action.label) : action.label}</button>`
       )).join("");
 
       quickActionGrid.querySelectorAll("[data-quick]").forEach(btn => {
@@ -835,7 +903,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         insertMarketTemplate("risk");
       }
       const reply = quickRule[text] || "收到，我幫你記下來。";
-      voiceText.innerHTML = `<span class="ok">已記錄：</span>${text}`;
+      voiceText.textContent = `已記錄：${text}`;
       speak(reply);
       if (!["我吃藥了", "我要看影片", "我不舒服"].includes(text)) {
         saveLifeNote(text);
@@ -886,7 +954,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         return;
       }
       customActionList.innerHTML = customActions.map((action, index) => (
-        `<div class="list-item"><strong>${action.label}</strong><br>${action.value}<br><button class="delete-btn" type="button" data-delete-action="${index}">刪除快捷鍵</button></div>`
+        `<div class="list-item"><strong>${escapeHtml(action.label)}</strong><br>${escapeHtml(action.value)}<br><button class="delete-btn" type="button" data-delete-action="${index}">刪除快捷鍵</button></div>`
       )).join("");
       customActionList.querySelectorAll("[data-delete-action]").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -1009,6 +1077,8 @@ const STORE_KEY = "grandmaVoiceLogs";
 
     function renderView() {
       const view = getView();
+      document.body.classList.toggle("simple-view", view === "grandma");
+      document.body.classList.toggle("family-view", view === "family");
       document.getElementById("grandmaViewToggle").checked = view === "grandma";
       document.getElementById("familyViewToggle").checked = view === "family";
       document.getElementById("grandmaViewBtn").classList.toggle("active", view === "grandma");
@@ -1319,7 +1389,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       investmentRiskBox.innerHTML = [
         "<p class='today-focus-title'>紀律檢查</p>",
         notes.length
-          ? notes.map(note => `<p class="hint">${note}</p>`).join("")
+          ? notes.map(note => `<p class="hint">${escapeHtml(note)}</p>`).join("")
           : "<p class='hint'>目前沒有明顯高風險訊號。仍請自行確認交易理由與停損條件。</p>"
       ].join("");
       renderInvestmentPositions();
@@ -1330,15 +1400,15 @@ const STORE_KEY = "grandmaVoiceLogs";
     }
 
     function isInvestmentText(text) {
-      const clean = String(text || "").replace(/[，。！？,.!?s]/g, "");
-      const hasSymbol = /台積電|鴻海|聯發科|0050|00878|BTC|ETH|比特幣|以太幣|[A-Z]{1,6}|d{4,6}/i.test(clean);
+      const clean = String(text || "").replace(/[，。！？,.!?\s]/g, "");
+      const hasSymbol = /台積電|鴻海|聯發科|0050|00878|BTC|ETH|比特幣|以太幣|\b[A-Z]{1,6}\b|\b\d{4,6}\b/i.test(clean);
       const hasInvestmentAction = /股票|投資|持股|持倉|買進|賣出|成交|加碼|減碼|進場|出場|數量|觀察|跌到|漲到|現價|收盤|報價|停損|停利|到價|觀察價|目標價|策略|部位|財報|籌碼|技術面|基本面|本益比|殖利率|ETF|大盤|盤勢|復盤|FOMO/i.test(clean);
       const hasMarketContext = /美股|台股|那斯達克|NASDAQ|標普|S&P|道瓊|費半|FOMC|CPI|PCE|非農|美債|美元指數|地緣政治/i.test(clean);
       return hasMarketContext || (hasSymbol && hasInvestmentAction);
     }
 
     function detectButlerContext(text) {
-      const clean = String(text || "").replace(/[，。！？,.!?s]/g, "");
+      const clean = String(text || "").replace(/[，。！？,.!?\s]/g, "");
       if (isHealthMeasurementText(text) || /血壓|血糖|吃藥|打針|胰島素|回診|診所|醫院|拿藥|頭暈|胸悶|不舒服/.test(clean)) return "elder";
       if (isInvestmentText(text)) return "investment";
       if (/訂單|出貨|宅配|物流|收款|庫存|客人訂|客戶訂|包材|原料|幾顆|幾份/.test(clean)) return "business";
@@ -1894,7 +1964,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       investmentRiskConfigBox.innerHTML = [
         "<p class='today-focus-title'>資金控管</p>",
         "<p class='hint'>總投入：" + formatMaybeNumber(summary.totalCost) + (exposurePct !== null ? "（" + exposurePct.toFixed(1) + "%）" : "") + "｜最大可虧損合計：約 " + formatMaybeNumber(summary.totalMaxLoss) + "</p>",
-        summary.overLimit.length ? "<p class='hint'><span class='warn'>超過設定：</span>" + summary.overLimit.map(position => position.symbol).join("、") + "</p>" : "<p class='hint'>目前沒有超過資金控管上限的持倉。</p>",
+        summary.overLimit.length ? "<p class='hint'><span class='warn'>超過設定：</span>" + escapeHtml(summary.overLimit.map(position => position.symbol).join("、")) + "</p>" : "<p class='hint'>目前沒有超過資金控管上限的持倉。</p>",
         "<p class='hint'>設定：單筆最大可虧損 " + (investmentRiskConfig.maxLoss || "未設") + "｜單檔投入上限 " + (investmentRiskConfig.maxPositionPct || 20) + "%</p>"
       ].join("");
     }
@@ -1998,7 +2068,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         const discipline = evaluateTradeDiscipline(position);
         const maxLoss = getMaxLossAmount(position);
         const riskLimit = evaluateRiskLimits(position);
-        const risk = !position.stopLoss ? "<span class='warn'>尚未設定停損</span>" : "停損 " + formatMaybeNumber(position.stopLoss);
+        const risk = !position.stopLoss ? "<span class='warn'>尚未設定停損</span>" : "停損 " + escapeHtml(formatMaybeNumber(position.stopLoss));
         const target = position.takeProfit ? "停利 " + formatMaybeNumber(position.takeProfit) : "尚未設定停利";
         const qty = position.quantity ? formatMaybeNumber(position.quantity) + (position.unit || "") : "觀察中";
         const avg = position.avgPrice ? "均價 " + formatMaybeNumber(position.avgPrice) : "均價未記";
@@ -2015,7 +2085,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         const maxLossText = maxLoss === null ? "最大可虧損待計算" : "最大可虧損約 " + formatMaybeNumber(maxLoss);
         const positionPctText = riskLimit.positionPct !== null ? "投入佔比 " + riskLimit.positionPct.toFixed(1) + "%" : "投入佔比待總資金";
         const riskLimitText = riskLimit.ok ? "資金控管 OK" : "資金控管提醒：" + riskLimit.notes.join("、");
-        return "<div class='list-item'><strong>" + position.symbol + "</strong> · " + position.market + "<br>" + qty + " · " + avg + "<br>" + current + " · " + staleClass + "<br>" + pnlText + "<br>" + wait + " · " + score + "<br>紀律 " + discipline.score + "/100 · " + maxLossText + "<br>" + positionPctText + " · " + riskLimitText + "<br><span class='hint'>" + missing + "</span><br>" + tagText + "<br>" + riskText + "<br>" + risk + " · " + target + "<br><span class='hint'>" + alert + "</span><br><span class='hint'>" + getTradeDisciplineHint(position) + "</span><br><span class='hint'>狀態：" + (position.status || "觀察中") + "</span><br><button class='mini-btn' type='button' data-close-position='" + index + "'>標記已出場</button></div>";
+        return "<div class='list-item'><strong>" + escapeHtml(position.symbol) + "</strong> · " + escapeHtml(position.market) + "<br>" + escapeHtml(qty) + " · " + escapeHtml(avg) + "<br>" + escapeHtml(current) + " · " + staleClass + "<br>" + escapeHtml(pnlText) + "<br>" + escapeHtml(wait) + " · " + escapeHtml(score) + "<br>紀律 " + discipline.score + "/100 · " + escapeHtml(maxLossText) + "<br>" + escapeHtml(positionPctText) + " · " + escapeHtml(riskLimitText) + "<br><span class='hint'>" + escapeHtml(missing) + "</span><br>" + escapeHtml(tagText) + "<br>" + escapeHtml(riskText) + "<br>" + risk + " · " + escapeHtml(target) + "<br><span class='hint'>" + escapeHtml(alert) + "</span><br><span class='hint'>" + escapeHtml(getTradeDisciplineHint(position)) + "</span><br><span class='hint'>狀態：" + escapeHtml(position.status || "觀察中") + "</span><br><button class='mini-btn' type='button' data-close-position='" + index + "'>標記已出場</button></div>";
       }).join("");
       investmentPositionList.querySelectorAll("[data-close-position]").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -2103,7 +2173,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         return;
       }
       marketBriefList.innerHTML = marketBriefs.slice(0, 5).map((item, index) => (
-        `<div class="list-item"><strong>市場分析</strong><br>${item.text}<br><span class="hint">${item.ts}</span><br><button class="delete-btn" type="button" data-delete-market-brief="${index}">刪除這筆</button></div>`
+        `<div class="list-item"><strong>市場分析</strong><br>${escapeHtml(item.text)}<br><span class="hint">${escapeHtml(item.ts)}</span><br><button class="delete-btn" type="button" data-delete-market-brief="${index}">刪除這筆</button></div>`
       )).join("");
       marketBriefList.querySelectorAll("[data-delete-market-brief]").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -2148,7 +2218,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         acc[item.mood] = (acc[item.mood] || 0) + 1;
         return acc;
       }, {});
-      document.getElementById("moodTrend").innerHTML = `<div class="list-item"><strong>近 7 次心情</strong><br>${Object.entries(counts).map(([mood, count]) => `${mood} ${count} 次`).join("｜")}</div>`;
+      document.getElementById("moodTrend").innerHTML = `<div class="list-item"><strong>近 7 次心情</strong><br>${Object.entries(counts).map(([mood, count]) => `${escapeHtml(mood)} ${count} 次`).join("｜")}</div>`;
     }
 
     function persistMedicines() {
@@ -2202,7 +2272,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         return;
       }
       medicineList.innerHTML = medicines.map((med, index) => (
-        `<div class="list-item"><strong>${med.name}</strong><br><span class="hint">${med.time}｜剩餘 ${med.count ?? 0}｜上次 ${med.lastTakenAt || "尚未回報"}</span><button class="mini-btn" type="button" data-take-medicine="${index}">我吃這個藥了</button></div>`
+        `<div class="list-item"><strong>${escapeHtml(med.name)}</strong><br><span class="hint">${escapeHtml(med.time)}｜剩餘 ${Number(med.count) || 0}｜上次 ${escapeHtml(med.lastTakenAt || "尚未回報")}</span><button class="mini-btn" type="button" data-take-medicine="${index}">我吃這個藥了</button></div>`
       )).join("");
 
       document.querySelectorAll("[data-take-medicine]").forEach(btn => {
@@ -2236,7 +2306,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         return;
       }
       habitRadar.innerHTML = top.map(item => (
-        `<div class="list-item"><strong>${item.category}</strong><br>${item.text}<br><span class="hint">出現 ${item.count} 次，上次 ${item.lastAt}</span></div>`
+        `<div class="list-item"><strong>${escapeHtml(item.category)}</strong><br>${escapeHtml(item.text)}<br><span class="hint">出現 ${Number(item.count) || 0} 次，上次 ${escapeHtml(item.lastAt)}</span></div>`
       )).join("");
     }
 
@@ -2286,7 +2356,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         return;
       }
       keywordRuleList.innerHTML = keywordRules.slice(0, 8).map((rule, index) => (
-        `<div class="list-item"><strong>${rule.keyword}</strong><br>${rule.reply}<br><span class="hint">觸發 ${rule.count || 0} 次</span><button class="mini-btn" type="button" data-keyword-delete="${index}">刪除規則</button></div>`
+        `<div class="list-item"><strong>${escapeHtml(rule.keyword)}</strong><br>${escapeHtml(rule.reply)}<br><span class="hint">觸發 ${Number(rule.count) || 0} 次</span><button class="mini-btn" type="button" data-keyword-delete="${index}">刪除規則</button></div>`
       )).join("");
 
       document.querySelectorAll("[data-keyword-delete]").forEach(btn => {
@@ -2319,7 +2389,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       const message = "我先標記為高風險投資事項。這裡只做紀律提醒，不會自動下單；請先確認最大虧損、停損條件和是否使用槓桿。";
       logEvent("投資風險", text);
       saveLifeNote(text);
-      voiceText.innerHTML = `<span class="warn">高風險提醒：</span>${message}`;
+      voiceText.textContent = `高風險提醒：${message}`;
       updateFloatingStatus(message);
       speak(message);
       return true;
@@ -2612,6 +2682,9 @@ const STORE_KEY = "grandmaVoiceLogs";
         storage.setJSON(TASK_KEY, taskCards);
       } catch (_) {}
       renderTaskCards();
+      renderSystemStatus();
+      renderTodayFocus();
+      setReminderByHour();
       renderInvestmentDashboard();
       scheduleAllTaskReminders();
       scheduleInvestmentReminders();
@@ -2759,10 +2832,10 @@ const STORE_KEY = "grandmaVoiceLogs";
       taskCardList.innerHTML = activeCards.map(card => {
         const index = taskCards.indexOf(card);
         const items = card.items.length
-          ? card.items.map(item => `<li>${item}</li>`).join("")
+          ? card.items.map(item => `<li>${escapeHtml(item)}</li>`).join("")
           : "<li>先幫你開好這件事，等等可以繼續補項目。</li>";
         const reminderText = card.reminderAt ? new Date(card.reminderAt).toLocaleString("zh-TW") : "尚未安排提醒";
-        return `<div class="list-item"><strong>${card.title}</strong><br><span class="hint">${card.category}｜${card.status}｜提醒：${reminderText}</span><ul>${items}</ul><button class="mini-btn" type="button" data-test-remind-task="${index}">10 秒後測試提醒</button><button class="mini-btn" type="button" data-remind-task="${index}">等一下提醒我</button><button class="mini-btn" type="button" data-complete-task="${index}">這件事完成了</button></div>`;
+        return `<div class="list-item"><strong>${escapeHtml(card.title)}</strong><br><span class="hint">${escapeHtml(card.category)}｜${escapeHtml(card.status)}｜提醒：${escapeHtml(reminderText)}</span><ul>${items}</ul><button class="mini-btn" type="button" data-test-remind-task="${index}">10 秒後測試提醒</button><button class="mini-btn" type="button" data-remind-task="${index}">等一下提醒我</button><button class="mini-btn" type="button" data-complete-task="${index}">這件事完成了</button></div>`;
       }).join("");
 
       document.querySelectorAll("[data-test-remind-task]").forEach(btn => {
@@ -2817,7 +2890,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         acc[key] = (acc[key] || 0) + 1;
         return acc;
       }, {});
-      taskGroupSummary.innerHTML = `<div class="list-item"><strong>目前任務分組</strong><br>${Object.entries(groups).map(([name, count]) => `${name} ${count} 件`).join("｜")}</div>`;
+      taskGroupSummary.innerHTML = `<div class="list-item"><strong>目前任務分組</strong><br>${Object.entries(groups).map(([name, count]) => `${escapeHtml(name)} ${count} 件`).join("｜")}</div>`;
     }
 
     function renderHabits() {
@@ -2826,7 +2899,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         return;
       }
       habitList.innerHTML = habits.slice(0, 6).map((item, index) => (
-        `<div class="list-item"><strong>${item.category}</strong><br>${item.text}<br><span class="hint">出現 ${item.count} 次</span><br><button class="mini-btn" type="button" data-habit="${index}">再記一次</button></div>`
+        `<div class="list-item"><strong>${escapeHtml(item.category)}</strong><br>${escapeHtml(item.text)}<br><span class="hint">出現 ${Number(item.count) || 0} 次</span><br><button class="mini-btn" type="button" data-habit="${index}">再記一次</button></div>`
       )).join("");
 
       document.querySelectorAll("[data-habit]").forEach(btn => {
@@ -2962,7 +3035,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         logEvent("緊急", text);
         notifyFamily(`緊急關鍵詞：${text}`);
         speak("我收到不舒服訊息，會優先通知家人。你先慢慢坐好休息。");
-        voiceText.innerHTML = `<span class="warn">已標記緊急：</span>${text}`;
+        voiceText.textContent = `已標記緊急：${text}`;
         return;
       }
       if (clean.includes("明天要看醫生") || clean.includes("我要看醫生")) {
@@ -2981,7 +3054,7 @@ const STORE_KEY = "grandmaVoiceLogs";
             return;
           }
           speak(quickRule[key]);
-          voiceText.innerHTML = `<span class="ok">已記錄：</span>${key}`;
+          voiceText.textContent = `已記錄：${key}`;
           return;
         }
       }
@@ -2998,8 +3071,7 @@ const STORE_KEY = "grandmaVoiceLogs";
       recognition.lang = "zh-TW";
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
-      voiceBtn.classList.add("listening");
-      voiceBtn.textContent = "我正在聽";
+      setVoiceButtonState(true);
       voiceText.textContent = "請開始說話...";
 
       recognition.onresult = async (e) => {
@@ -3007,14 +3079,20 @@ const STORE_KEY = "grandmaVoiceLogs";
         const text = e.results[0][0].transcript || "";
         await parseVoice(text);
       };
-      recognition.onerror = () => {
+      recognition.onerror = event => {
         clearTimeout(recognitionTimeout);
-        fallbackToText("麥克風未授權或語音失敗");
+        const reasons = {
+          "not-allowed": "麥克風權限尚未開啟",
+          "service-not-allowed": "瀏覽器不允許使用語音服務",
+          "audio-capture": "找不到可使用的麥克風",
+          "no-speech": "沒有聽到說話聲",
+          "network": "語音辨識暫時連不上網路"
+        };
+        fallbackToText(reasons[event.error] || "語音辨識暫時失敗");
       };
       recognition.onend = () => {
         clearTimeout(recognitionTimeout);
-        voiceBtn.classList.remove("listening");
-        voiceBtn.textContent = "跟管家說";
+        setVoiceButtonState(false);
         voiceMode = "idle";
       };
       voiceMode = "listening";
@@ -3023,8 +3101,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         recognition.start();
       } catch (_) {
         voiceMode = "idle";
-        voiceBtn.classList.remove("listening");
-        voiceBtn.textContent = "跟管家說";
+        setVoiceButtonState(false);
         fallbackToText("麥克風目前無法啟動");
         return;
       }
@@ -3032,7 +3109,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         if (voiceMode !== "listening") return;
         stopVoice();
         fallbackToText("沒有收到語音");
-      }, 5000);
+      }, 12000);
     }
 
     function stopVoice() {
@@ -3095,7 +3172,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         return;
       }
       summary.innerHTML = logs.slice(0, 8).map((item, index) => (
-        `<div class="list-item"><strong>${item.kind}</strong><br>${item.detail}<br><span class="hint">${item.ts}</span><br><button class="delete-btn" type="button" data-delete-log="${index}">刪除這筆</button></div>`
+        `<div class="list-item"><strong>${escapeHtml(item.kind)}</strong><br>${escapeHtml(item.detail)}<br><span class="hint">${escapeHtml(item.ts)}</span><br><button class="delete-btn" type="button" data-delete-log="${index}">刪除這筆</button></div>`
       )).join("");
 
       summary.querySelectorAll("[data-delete-log]").forEach(btn => {
@@ -3459,7 +3536,7 @@ const STORE_KEY = "grandmaVoiceLogs";
         "<p class='hint'>內建：" + Object.keys(investmentStrategyTemplates).join("｜") + "</p>",
         ...(activeStrategies.length ? activeStrategies.map(position => {
           const gaps = getStrategyGaps(position);
-          return "<p class='hint'>" + position.symbol + "｜" + position.strategyName + (gaps.length ? "｜缺：" + gaps.join("、") : "｜策略條件齊全") + "</p>";
+          return "<p class='hint'>" + escapeHtml(position.symbol) + "｜" + escapeHtml(position.strategyName) + (gaps.length ? "｜缺：" + escapeHtml(gaps.join("、")) : "｜策略條件齊全") + "</p>";
         }) : ["<p class='hint'>可以輸入：台積電套用回檔買進策略。</p>"])
       ].join("");
     }
@@ -3534,9 +3611,9 @@ const STORE_KEY = "grandmaVoiceLogs";
         : "尚未記錄交易情緒";
       investmentJournalBox.innerHTML = [
         "<p class='today-focus-title'>投資日記與情緒</p>",
-        "<p class='hint'>最近情緒：" + emotionText + "</p>",
+        "<p class='hint'>最近情緒：" + escapeHtml(emotionText) + "</p>",
         summary.risky ? "<p class='hint'><span class='warn'>提醒：</span>最近有 " + summary.risky + " 筆可能受情緒影響，先降速檢查紀律。</p>" : "<p class='hint'>目前沒有明顯情緒交易警訊。</p>",
-        ...(summary.recent.length ? summary.recent.slice(0, 3).map(item => "<p class='hint'>" + item.ts + "｜" + item.symbol + "｜" + item.emotions.join("、") + "｜" + item.text + "</p>") : ["<p class='hint'>可以輸入：今天買台積電有點 FOMO，但停損停利都有照計畫。</p>"])
+        ...(summary.recent.length ? summary.recent.slice(0, 3).map(item => "<p class='hint'>" + escapeHtml(item.ts) + "｜" + escapeHtml(item.symbol) + "｜" + escapeHtml(item.emotions.join("、")) + "｜" + escapeHtml(item.text) + "</p>") : ["<p class='hint'>可以輸入：今天買台積電有點 FOMO，但停損停利都有照計畫。</p>"])
       ].join("");
     }
 
@@ -3830,6 +3907,9 @@ const STORE_KEY = "grandmaVoiceLogs";
       renderInvestmentPositions();
       renderMarketBriefs();
       scheduleAllTaskReminders();
+      renderSystemStatus();
+      renderTodayFocus();
+      setReminderByHour();
       actionStatus.textContent = "已清除測試資料。";
     }
 

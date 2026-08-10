@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>智能管家 v5 一個管家版</title>
+  <title>智能管家 v6 一個管家版</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#226f66" />
-  <link rel="stylesheet" href="./styles.css?v=20260802h" />
+  <link rel="stylesheet" href="./styles.css?v=20260810a" />
 </head>
 <body>
   <div id="browserGate" class="browser-gate hidden" role="dialog" aria-live="polite" aria-label="瀏覽器提醒">
@@ -41,9 +41,9 @@
     </div>
   </div>
   <main class="app">
-    <section class="card">
+    <section class="card dashboard-card">
       <h1 id="appTitle">智能管家</h1>
-      <p class="version-tag">v6.0.2 可靠提醒版</p>
+      <p class="version-tag">v6.1 簡單管家版</p>
       <p id="today"></p>
       <p id="reminder" class="status"></p>
       <div id="systemStatusGrid" class="status-grid"></div>
@@ -51,11 +51,49 @@
       <p id="mainHint" class="hint">你直接說就好，管家會幫你整理、提醒和追蹤。</p>
     </section>
 
-    <section class="card butler-overview" aria-labelledby="butlerOverviewTitle">
+    <section id="assistantPanel" class="card elder-simple-section assistant-panel">
+      <p class="eyebrow">不用找功能</p>
+      <h2 id="assistantSectionTitle">想到什麼，跟管家說</h2>
+      <button id="voiceBtn" class="voice-btn" type="button" aria-describedby="voiceText">
+        <span class="voice-btn-icon" aria-hidden="true">●</span>
+        <span class="voice-btn-label">跟管家說</span>
+        <span class="voice-btn-help">按一下後直接說話</span>
+      </button>
+      <p id="voiceText" class="assistant-reply" role="status" aria-live="polite">我在這裡。待辦、提醒、健康或臨時想到的事都可以說。</p>
+      <button id="undoLastBtn" class="mini-btn secondary undo-last-btn hidden" type="button">復原剛剛操作</button>
+      <div id="voiceFallbackBox" class="voice-fallback hidden">
+        <label for="voiceFallbackInput">麥克風不能用也沒關係，直接打字給管家</label>
+        <textarea id="voiceFallbackInput" class="input" rows="3" placeholder="例如：明天十點提醒我去拿藥"></textarea>
+        <div class="grid">
+          <button id="voiceFallbackSubmitBtn" class="mini-btn" type="button">送給管家</button>
+          <button id="voiceFallbackCancelBtn" class="mini-btn secondary" type="button">先不用</button>
+        </div>
+      </div>
+      <div id="butlerFollowup" class="butler-followup hidden" role="status" aria-live="polite">
+        <p class="butler-followup-label">管家想確認一件事</p>
+        <p id="butlerFollowupQuestion"></p>
+        <div class="followup-actions">
+          <button id="answerFollowupBtn" class="mini-btn" type="button">直接回答管家</button>
+          <button id="skipFollowupBtn" class="mini-btn secondary" type="button">先不用</button>
+        </div>
+      </div>
+      <details class="simple-assist-tools">
+        <summary>不方便說話時</summary>
+        <p class="simple-assist-hint">只有需要時再打開，不用每個按鈕都學。</p>
+        <div class="grid">
+          <button id="elderSpeakBtn" class="big-btn hidden" type="button" aria-hidden="true" tabindex="-1">跟管家說</button>
+          <button id="elderEmergencyBtn" class="big-btn alert" type="button">重要狀況</button>
+          <button id="elderFamilyBtn" class="big-btn" type="button">聯絡對象</button>
+          <button id="elderDoneBtn" class="big-btn" type="button">我做好了</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="card butler-overview guide-card" aria-labelledby="butlerOverviewTitle">
       <div class="butler-overview-head">
         <div>
-          <p class="eyebrow">不用找功能</p>
-          <h2 id="butlerOverviewTitle">想到什麼，直接跟管家說</h2>
+          <p class="eyebrow">管家會自己整理</p>
+          <h2 id="butlerOverviewTitle">不必先選功能或分類</h2>
         </div>
         <span class="butler-ready" aria-label="管家已準備好">管家在</span>
       </div>
@@ -82,7 +120,7 @@
     <input id="familyViewToggle" class="view-radio" type="radio" name="viewToggle" />
     <nav class="view-tabs" aria-label="使用模式">
       <label id="grandmaViewBtn" class="view-btn" for="grandmaViewToggle">簡單使用</label>
-      <label id="familyViewBtn" class="view-btn" for="familyViewToggle">家人管理</label>
+      <label id="familyViewBtn" class="view-btn" for="familyViewToggle">管理設定</label>
     </nav>
 
     <section class="card admin-section">
@@ -160,35 +198,6 @@
       <input id="customActionTextInput" class="input" placeholder="觸發內容，例如：我想找女兒" />
       <button id="addCustomActionBtn" class="mini-btn" type="button">新增快捷鍵</button>
       <div id="customActionList"></div>
-    </section>
-
-    <section class="card elder-simple-section">
-      <h2 id="assistantSectionTitle">跟管家說</h2>
-      <button id="voiceBtn" class="voice-btn" type="button">跟管家說</button>
-      <p id="voiceText" class="hint" role="status" aria-live="polite">想到什麼直接說，管家會幫你整理。</p>
-      <button id="undoLastBtn" class="mini-btn secondary undo-last-btn hidden" type="button">復原剛剛操作</button>
-      <div id="voiceFallbackBox" class="voice-fallback hidden">
-        <label for="voiceFallbackInput">麥克風不能用也沒關係，直接打字給管家</label>
-        <textarea id="voiceFallbackInput" class="input" rows="3" placeholder="例如：明天十點提醒我去拿藥"></textarea>
-        <div class="grid">
-          <button id="voiceFallbackSubmitBtn" class="mini-btn" type="button">送給管家</button>
-          <button id="voiceFallbackCancelBtn" class="mini-btn secondary" type="button">先不用</button>
-        </div>
-      </div>
-      <div id="butlerFollowup" class="butler-followup hidden" role="status" aria-live="polite">
-        <p class="butler-followup-label">管家想確認一件事</p>
-        <p id="butlerFollowupQuestion"></p>
-        <div class="followup-actions">
-          <button id="answerFollowupBtn" class="mini-btn" type="button">直接回答管家</button>
-          <button id="skipFollowupBtn" class="mini-btn secondary" type="button">先不用</button>
-        </div>
-      </div>
-      <div class="grid" style="margin-top:10px;">
-        <button id="elderSpeakBtn" class="big-btn hidden" type="button" aria-hidden="true" tabindex="-1">跟管家說</button>
-        <button id="elderEmergencyBtn" class="big-btn alert" type="button">重要狀況</button>
-        <button id="elderFamilyBtn" class="big-btn" type="button">聯絡對象</button>
-        <button id="elderDoneBtn" class="big-btn" type="button">我做好了</button>
-      </div>
     </section>
 
     <section class="card admin-section">
@@ -333,7 +342,7 @@
     </aside>
   </main>
 
-  <script src="./storage.js?v=20260802h" defer></script>
-  <script src="./app.js?v=20260802h" defer></script>
+  <script src="./storage.js?v=20260810a" defer></script>
+  <script src="./app.js?v=20260810a" defer></script>
 </body>
 </html>
